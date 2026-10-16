@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《山河之旅》线上版 · 代码基座理解报告</title>
+<style>
+  :root {
+    --walnut: #3b281e;
+    --walnut2: #4a3525;
+    --parch: #efe4ce;
+    --parch2: #faf3e3;
+    --line: #b89f78;
+    --gold: #e9c46a;
+    --brown: #8c6239;
+    --ink: #2c1e14;
+    --sub: #6b4c2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: #241a12; color: var(--ink); line-height: 1.65;
+  }
+  .page { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  header {
+    background: var(--walnut); color: #f4ece1;
+    border: 3px solid var(--brown); border-radius: 14px;
+    padding: 20px 24px; margin-bottom: 20px;
+  }
+  header h1 { font-size: 24px; letter-spacing: 1px; }
+  header .en { color: #d4a373; font-size: 13px; margin-top: 2px; }
+  header .meta { margin-top: 10px; font-size: 12px; color: #c8b294; line-height: 1.8; }
+  .card {
+    background: var(--parch); border: 2px solid var(--brown);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 17px; color: var(--walnut); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2 .tag {
+    background: var(--walnut); color: var(--gold); border-radius: 6px;
+    font-size: 11.5px; font-weight: 900; padding: 2px 8px;
+  }
+  .card p, .card li { font-size: 13.5px; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code {
+    background: #e9d8b8; border: 1px solid #d4bd96; border-radius: 4px;
+    padding: 0 4px; font-size: 12px; font-family: Menlo, Consolas, monospace; color: #5c3a21;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
+  th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #e2ceb0; color: var(--walnut); font-weight: 900; }
+  tr:nth-child(even) td { background: #f6edd8; }
+
+  /* 架构分层图 */
+  .layers { margin-top: 6px; }
+  .layer {
+    background: var(--parch2); border: 1.5px solid var(--line);
+    border-radius: 10px; padding: 9px 12px;
+  }
+  .l-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+  .l-num {
+    background: var(--walnut); color: var(--gold); border-radius: 6px;
+    font-size: 12px; font-weight: 900; padding: 2px 8px;
+  }
+  .l-name { font-size: 14px; font-weight: 900; }
+  .l-line { margin-left: auto; font-size: 11px; font-weight: 800; color: var(--sub); }
+  .l-body { font-size: 12.5px; color: #3b281e; }
+  .arrow { text-align: center; color: var(--brown); font-size: 12px; font-weight: 900; margin: 2px 0; }
+
+  /* 状态机 */
+  .sm-flow { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .sm-box { border-radius: 9px; padding: 9px 14px; color: #fff; font-size: 13.5px; font-weight: 900; text-align: center; }
+  .sm-note { font-size: 11.5px; color: var(--sub); text-align: center; margin: 3px 0; font-weight: 800; }
+  .sm-branch { display: flex; gap: 8px; flex-wrap: wrap; }
+  .sm-branch div { flex: 1; min-width: 220px; border-radius: 8px; padding: 10px; text-align: center; font-size: 12.5px; font-weight: 800; }
+
+  .warn {
+    background: #e9d8b8; border-left: 4px solid var(--brown);
+    border-radius: 6px; padding: 8px 12px; font-size: 12.5px; color: #3b281e; margin-top: 8px;
+  }
+  footer { text-align: center; color: #8a6f52; font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <h1>🚂 《山河之旅》线上版 · 代码基座理解报告</h1>
+    <div class="en">Discover China — WebGL Online Edition · Codebase Review</div>
+    <div class="meta">
+      基座文件：<code>/Users/hugo/Desktop/山河之旅网页版/discover_china_3d.html</code>（2885 行 / 115,793 字节 · 单文件零构建依赖）<br>
+      交接文档：<code>discover_china_handover.md</code>（已逐条核对）<br>
+      读取方式：全文通读 3 段（1–1000 / 1001–2000 / 2001–2885 行）· 与交接文档 V1~V6 演进史交叉验证
+    </div>
+  </header>
+
+  <div class="card">
+    <h2><span class="tag">定位</span> 一句话概括</h2>
+    <p>
+      基于 Three.js r128 的<strong>同屏热座（Hot-seat）真 3D 桌游</strong>：50 城 83 边中国铁路网（5 色车票 + GO 万能票），
+      <strong>受限深度无环全路径寻路</strong> + 多路线选择弹窗，<strong>逐城分步跳跃动画</strong>（440ms/跳 + 110ms 停顿），
+      4096×4096 离屏 Canvas 绘本底图（34 省真实省界、台湾/海南本岛、南海诸岛十段线附图框、定制矢量地标），
+      <strong>手写内联球面阻尼相机</strong>（无外部 OrbitControls），克制的复古胡桃木/羊皮纸 UI。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">架构</span> 模块分层架构（7 段）</h2>
+    <div class="layers">
+      <div class="layer">
+        <div class="l-head"><span class="l-num">1</span><span class="l-name">静态数据与坐标投影</span><span class="l-line">行 415–611</span></div>
+        <div class="l-body"><code>NODES</code> 50 城 {x,y,score,icon,sticker,region} · <code>EDGES</code> 83 边 {u,v,color,dashed} · 5 色常量<br>
+          投影四件套：<code>mapTo3D</code>（棋盘坐标→世界 [-37..37]）· <code>mapToCanvas</code>（→4096 纹理）· <code>lngLatToCanvas</code>（台/琼锚定校准）· <code>lngLatToSouthChinaSeaBox</code></div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="l-head"><span class="l-num">2</span><span class="l-name">4K 离屏纹理渲染引擎</span><span class="l-line">行 613–1519</span></div>
+        <div class="l-body"><code>renderFullBoardCanvas(4096²)</code> 绘制链：海洋渐变 → 邻国大陆 → 中国大陆底板 → 台湾/海南本岛与省界（<code>drawTaiwanAndHainanWithProvinceBorders</code>）→ GeoJSON 34 省分省重彩（datav.aliyun <code>100000_full.json</code> 异步叠加）→ 生态（松/棕榈/毡房/岩石/鱼群/帆船/鲸）→ 矢量地标（布达拉宫/长城+天坛/熊猫/火锅/藏羚羊/卡车/东方明珠）→ 8 角罗盘 → 南海诸岛十段线附图框（<code>drawStandardSouthChinaSeaInset</code>）→ 折痕暗角</div>
+        <div class="warn">→ CanvasTexture 经 <code>MeshLambertMaterial</code> 贴到棋盘盒顶面（消除高光过曝）</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="l-head"><span class="l-num">3</span><span class="l-name">WebGL 场景与相机</span><span class="l-line">行 1521–1911</span></div>
+        <div class="l-body">手写<strong>球面阻尼相机</strong> <code>camState</code>（θ/φ/r，lerp 0.16，无外部 OrbitControls）· 2D/3D 一键切换（<code>toggle2D3DMode</code>）<br>
+          铁轨圆柱+木枕木+透明碰撞盒(r0.95) · 车站圆台+铜金帽 · 车削木偶棋子 · 6 面 3D 骰（5 色 + GO）· 灯光阴影</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="l-head"><span class="l-num">4</span><span class="l-name">交互拾取</span><span class="l-line">行 1913–2085</span></div>
+        <div class="l-body">Raycaster 悬停/点击 · 左键旋转/右键平移/滚轮缩放 · 点击铁轨可直达邻城<br>
+          悬停铁轨：浮窗 + <strong>原色微增</strong>（emissive 0.24 · scale 1.28，绝不泛白）+ 端点棋子<strong>幽灵化</strong>（opacity 0.28 防遮挡）</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="l-head"><span class="l-num">5</span><span class="l-name">游戏逻辑（状态机核心）</span><span class="l-line">行 2087–2813</span></div>
+        <div class="l-body">全局状态：<code>deck</code>(49) · <code>publicTargets</code>(3) · <code>players</code>{secret,tickets,score,node,isAI} · <code>currentPlayerIdx</code> · <code>hasRolled</code> · <code>pendingWilds</code><br>
+          寻路：<code>computeReachable</code> 受限深度无环全路径枚举（深度≤min(票,6)、签名去重、每城≤8 方案、耗票↑/顺路分↓）<br>
+          跳跃：<code>executeNodeMove</code> 逐城队列（440ms/跳 + 450ms 结算 + 110ms 停顿，每跳扣票）· AI：目标优先→顺路得分→BFS 距离贪心；全员 AI 手动启停</div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="l-head"><span class="l-num">6</span><span class="l-name">渲染循环与 UI</span><span class="l-line">行 2815–2884</span></div>
+        <div class="l-body"><code>animate</code>：相机阻尼 · 骰子抛投 · 跳跃弧线 · 信标脉动 · 城市标签 3D→屏幕投影<br>
+          UI：HUD · 侧边栏（秘密城市 58px 卡槽 / 公共目标 / 玩家票架 / 旅程记录）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">机制</span> 核心机制要点确认</h2>
+    <table>
+      <tr><th>项</th><th>要点</th><th>代码依据</th></tr>
+      <tr><td>拓扑</td><td>50 城 / 83 边；叶子节点仅呼伦贝尔、佳木斯；度数 5 枢纽为济南、重庆；海上虚线航线（沪-台-高-港-澳-琼）</td><td>NODES / EDGES</td></tr>
+      <tr><td>寻路</td><td>队列 BFS 枚举无环全路径；签名(路径+已用票)去重；深度上限 min(票数,6)；每城最多保留 8 方案；排序=耗票升序→顺路得分降序</td><td>computeReachable (2191)</td></tr>
+      <tr><td>跳跃</td><td>440ms 抛物线 + 450ms 结算窗 + 110ms 停顿；每跳先扣票，再判定途经公共目标得分与补牌</td><td>executeNodeMove (2416)</td></tr>
+      <tr><td>胜利</td><td>score≥10 且 node===secret；秘密城市每人开局从 49 张牌暗抽 1 张，与 3 张公共目标天然不冲突</td><td>initGame (2104) / 结算分支</td></tr>
+      <tr><td>AI</td><td>≥10 分前追公共目标（优先顺路得分），≥10 分后转向秘密城市；否则 BFS 距离贪心；全员 AI 时强制手动启停</td><td>aiExecuteMove (2579)</td></tr>
+      <tr><td>防遮挡</td><td>密集区节点外扩 + 扇形站位偏移 PAWN_RING_OFFSETS + 悬停铁轨时端点棋子幽灵化(0.28)</td><td>build3DRailsAndStations / setPawnsGhostMode</td></tr>
+      <tr><td>海疆规范</td><td>台湾本岛(含岛内分界)、海南本岛(含分区界)、澎湖、钓鱼岛、雷州半岛、海峡虚线、南海十段线附图框+岛礁标注</td><td>Section 2 绘制函数</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">状态机</span> 回合状态流转</h2>
+    <div class="sm-flow">
+      <div class="sm-box" style="background:#9b2226;">① 掷骰 ROLL_DICE（两枚六面骰：红/黄/绿/青/紫 + GO）</div>
+      <div class="sm-note">掷出 GO!×N ↕ 其余结果入账对应颜色车票（可无限囤积）</div>
+      <div class="sm-box" style="background:#b45309;">② 万能兑换 SELECT_WILD（手动指定 / AI 自动选邻边颜色）</div>
+      <div class="sm-note">▼ 车票入账</div>
+      <div class="sm-box" style="background:#2d6a4f;">③ 移动 MOVE_PHASE（逐城跳跃 · 多路线选择器 · 可多次移动或结束回合）</div>
+      <div class="sm-note">▼ 途经/停留公共目标 → 即时得分 + 牌库补牌</div>
+      <div class="sm-box" style="background:#3b5876;">④ 结算与判胜 SETTLEMENT · WIN_CHECK</div>
+      <div class="sm-branch">
+        <div style="background:#5c1d1d;border:2px solid var(--gold);color:#fff;">✅ 得分≥10 且抵达秘密城市 → 获胜（alert + 重开）</div>
+        <div style="background:#5c4028;color:#f4ece1;">🔁 未满足 → 下一玩家 → 回到 ①</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="tag">挂钩点</span> 为下一步迭代做的勘察</h2>
+    <p style="font-weight:900; color:#5c1d1d; margin-bottom:6px;">方向 A：多人异地联机房间服务端</p>
+    <ul>
+      <li>需抽离的「服务器权威状态」全部位于 Section 6 顶部全局变量：<code>deck</code> / <code>publicTargets</code> / <code>players{node,score,tickets,secret,isAI}</code> / <code>currentPlayerIdx</code> / <code>hasRolled</code> / <code>pendingWilds</code>——目前仅客户端内存可见。</li>
+      <li>防作弊现状：AI 秘密城市 UI 已显示「??? 暗牌」，3D 秘密信标仅渲染 <code>humanViewer</code> 视角（<code>sync3DBoardState</code>）——<strong>视角过滤已有雏形</strong>；联网时需服务端做到不下发他人 secret/tickets，仅下发可见信息。</li>
+      <li>状态机边界清晰：<code>rollDice → pickWild → enterMovePhase → (onNodeClick|aiExecuteMove) → executeNodeMove → endTurn</code>，很适合包成 action 消息；渲染层已按 humanViewer 视角工作，可复用为本地渲染层。</li>
+      <li>建议：单文件保留「单人/热座」回退模式，另起独立 server 文件（Node.js 或 Python FastAPI + WebSocket）。</li>
+    </ul>
+    <p style="font-weight:900; color:#2d6a4f; margin:12px 0 6px;">方向 B：Web Audio API 合成音效</p>
+    <ul>
+      <li>挂钩点明确：<code>rollDice</code>/<code>animate3DDiceThrow</code>（720ms 掷骰动画）、<code>executeNodeMove</code> 内每跳、公共目标得分处、获胜 alert 处；可选 <code>pickWild</code> / <code>endTurn</code> / UI 按钮。</li>
+      <li>约束友好：振荡器+噪声合成，无外部音频资源，完全符合「不引入不稳定外部插件」；需处理 AudioContext 自动播放策略（用户手势后初始化/resume）。</li>
+    </ul>
+  </div>
+
+  <footer>《山河之旅》项目 · 基座理解报告 · 2026-10-15 · 待确认迭代方向后继续</footer>
+</div>
+</body>
+</html>

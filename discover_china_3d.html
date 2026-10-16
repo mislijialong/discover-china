@@ -1,0 +1,2886 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>山河之旅 (Discover China)</title>
+  <style>
+    :root {
+      --c-red: #e63946;
+      --c-yellow: #f4a261;
+      --c-green: #6a994e;
+      --c-teal: #2a9d8f;
+      --c-purple: #8338ec;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; user-select: none; }
+    body { display: flex; height: 100vh; width: 100vw; background: #1a1410; color: #2c1e14; overflow: hidden; }
+
+    /* 左侧主视口 */
+    #webgl-container {
+      flex: 1; position: relative; height: 100vh; min-width: 600px;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 45%, #3d2b1f 0%, #22160f 70%, #120b07 100%);
+    }
+    #webgl-container canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; outline: none; z-index: 1; }
+
+    /* 铁轨悬浮信息框 */
+    #edge-hover-tooltip {
+      position: fixed; pointer-events: none; z-index: 95;
+      display: none; align-items: center; gap: 8px;
+      background: rgba(34, 24, 18, 0.96); backdrop-filter: blur(6px);
+      color: #f4ece1; padding: 6px 14px; border-radius: 18px;
+      font-size: 12.5px; font-weight: 800; white-space: nowrap;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+      border: 2px solid #b08d57;
+      transform: translate(-50%, -135%);
+    }
+    .edge-color-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      border: 1.5px solid #fff; display: inline-block; flex-shrink: 0;
+    }
+
+    /* 城市铭牌层 */
+    #labels-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; }
+    .city-label-3d {
+      position: absolute; transform: translate(-50%, -100%);
+      background: rgba(42, 31, 23, 0.90); padding: 2px 7px; border-radius: 7px;
+      border: 1px solid #c8b08a; font-size: 10.5px; font-weight: 800; color: #f5ebe0;
+      white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.45);
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
+      pointer-events: auto; cursor: pointer;
+    }
+    .city-label-3d:hover { transform: translate(-50%, -112%) scale(1.12); z-index: 60; border-color: #e9c46a; background: #1f1610; }
+    .city-label-3d.is-start { background: #8c1d1d; border: 1.5px solid #e9c46a; color: #fff; font-size: 11.5px; }
+    .city-label-3d.is-target {
+      background: #b45309; border: 1.5px solid #fde68a; color: #ffffff;
+      box-shadow: 0 3px 10px rgba(180, 83, 9, 0.65); animation: floatTag 1s ease-in-out infinite alternate; z-index: 35;
+      font-size: 11px;
+    }
+    .city-label-3d.is-secret {
+      background: #2b211b; border: 1.5px solid #d4a373; color: #f4ece1;
+      font-size: 11.5px; padding: 2.5px 8px; border-radius: 7px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65); z-index: 45;
+    }
+    .city-label-3d.is-reach {
+      background: #2d6a4f; border: 1.5px solid #d8f3dc; color: #ffffff;
+      box-shadow: 0 0 12px rgba(45, 106, 79, 0.9); font-size: 11px; z-index: 50;
+    }
+    .route-count-pill {
+      display: inline-block; background: #e9c46a; color: #2b211b;
+      font-size: 9px; font-weight: 900; padding: 0 4px; border-radius: 4px; margin-left: 3px;
+    }
+    @keyframes floatTag { from { margin-top: -2px; } to { margin-top: -8px; } }
+
+    /* 多路线选择弹窗 */
+    #route-picker-overlay {
+      position: absolute; inset: 0; background: rgba(18, 12, 8, 0.55);
+      backdrop-filter: blur(3px); z-index: 80; display: none;
+      justify-content: center; align-items: flex-end; padding-bottom: 68px;
+    }
+    .route-picker-card {
+      background: #f4ead5; width: 560px; max-width: 92%; max-height: 70vh;
+      border-radius: 14px; border: 2.5px solid #8c6239;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.75); display: flex; flex-direction: column;
+      overflow: hidden; animation: popUpModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes popUpModal {
+      from { transform: translateY(24px) scale(0.96); opacity: 0; }
+      to   { transform: translateY(0) scale(1); opacity: 1; }
+    }
+    .rp-header {
+      background: #3b281e; color: #f4ece1;
+      padding: 11px 18px; display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 2px solid #b08d57;
+    }
+    .rp-header h3 { font-size: 14.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .rp-close {
+      background: rgba(255,255,255,0.12); border: none; color: #f4ece1;
+      padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .rp-close:hover { background: #9b2226; }
+    .rp-sub {
+      background: #e9d8b8; color: #5c3a21; font-size: 11.5px; font-weight: 700;
+      padding: 6px 18px; border-bottom: 1px solid #d4bd96;
+    }
+    .rp-list {
+      padding: 12px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    }
+    .route-option-item {
+      border: 1.5px solid #c8b08a; border-radius: 8px; padding: 9px 14px;
+      background: #faf3e3; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .route-option-item:hover {
+      border-color: #2d6a4f; background: #e8f5e9;
+      transform: translateX(3px);
+    }
+    .ro-top { display: flex; justify-content: space-between; align-items: center; }
+    .ro-badge {
+      font-size: 11px; font-weight: 800; color: #3b281e; background: #e2ceb0;
+      padding: 2px 8px; border-radius: 5px;
+    }
+    .route-option-item:hover .ro-badge { background: #2d6a4f; color: #fff; }
+    .ro-bonus {
+      background: #b45309; color: #fff;
+      font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 5px;
+    }
+    .ro-path-chain {
+      font-size: 13px; font-weight: 800; color: #2c1e14;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px; line-height: 1.4;
+    }
+    .ro-step-arrow {
+      display: inline-flex; align-items: center; gap: 2px;
+      padding: 1px 6px; border-radius: 4px; color: #fff; font-size: 10px; font-weight: 800;
+      margin: 0 2px;
+    }
+    .ro-city-node { padding: 1px 4px; border-radius: 4px; }
+    .ro-city-node.hit-target { background: #fde68a; color: #92400e; border: 1px solid #d97706; }
+
+    /* 顶部控制栏 */
+    #top-bar {
+      position: absolute; top: 14px; left: 14px; right: 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      pointer-events: none; z-index: 30;
+    }
+    .cam-group {
+      pointer-events: auto; display: flex; gap: 8px; align-items: center;
+      background: rgba(36, 25, 18, 0.92); backdrop-filter: blur(8px);
+      padding: 6px 12px; border-radius: 9px; border: 1px solid #7f5539;
+      color: #e6ccb2; font-size: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    }
+    .cam-btn {
+      background: #4a3525; color: #f5ebe0; border: 1px solid #7f5539; padding: 5px 11px;
+      border-radius: 6px; font-size: 11.5px; font-weight: 700; cursor: pointer; transition: 0.18s;
+    }
+    .cam-btn:hover { background: #6f4e37; border-color: #d4a373; }
+    #btn-mode-toggle {
+      background: #8c4a27; border: 1.5px solid #d4a373; color: #ffffff; font-weight: 800;
+    }
+    #btn-mode-toggle.mode-2d {
+      background: #2b5876; border-color: #8ecae6;
+    }
+
+    #hud-toast {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(38, 26, 18, 0.95); padding: 9px 22px; border-radius: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6); font-size: 13px; font-weight: 800;
+      color: #f4ece1; border: 1.5px solid #b08d57; pointer-events: none; z-index: 30;
+      white-space: nowrap;
+    }
+
+    /* 右侧控制面板 */
+    #sidebar {
+      width: 425px; flex-shrink: 0;
+      background: linear-gradient(180deg, #e3d3b6 0%, #d5c19d 100%);
+      display: flex; flex-direction: column;
+      border-left: 4px solid #4a3525; box-shadow: -8px 0 24px rgba(0,0,0,0.6); z-index: 40;
+    }
+    .sidebar-header {
+      background: #2b1f17; color: #f4ece1;
+      padding: 11px 16px; display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 2px solid #8c6239;
+    }
+    .sidebar-header h1 { font-size: 16px; display: flex; align-items: center; gap: 6px; font-weight: 800; letter-spacing: 0.5px; }
+    .sidebar-body { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+
+    .box {
+      background: #efe4ce; border-radius: 9px; padding: 10px 12px;
+      box-shadow: 0 2px 6px rgba(45, 30, 15, 0.08);
+      border: 1px solid #c2ab86;
+    }
+    .box-title { font-size: 11.5px; font-weight: 800; color: #5c4028; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+    /* 秘密城市卡槽：左右色块严格等高对齐 (height: 58px) */
+    #secret-hero-box {
+      background: #2b211b;
+      border-radius: 10px; padding: 10px 14px; color: #f4ece1;
+      border: 1.5px solid #b08d57;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    }
+    #secret-hero-box:hover { border-color: #e9c46a; background: #362922; }
+    #secret-hero-box.ready-to-win {
+      background: #5c1d1d;
+      border-color: #e9c46a;
+    }
+    .secret-header-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; font-weight: 800; color: #d4a373;
+      margin-bottom: 7px;
+    }
+    .secret-main-row {
+      display: flex; align-items: stretch; justify-content: space-between; gap: 10px;
+    }
+    .secret-city-badge {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(255, 255, 255, 0.05); padding: 0 12px; border-radius: 8px;
+      border: 1px solid rgba(176, 141, 87, 0.35); flex: 1;
+      height: 58px;
+    }
+    .secret-icon { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .secret-name { font-size: 18px; font-weight: 900; color: #f4ece1; letter-spacing: 0.5px; line-height: 1.2; }
+    .secret-sub { font-size: 10.5px; color: #b8a692; margin-top: 2px; line-height: 1.2; }
+    .secret-dist-box {
+      display: flex; flex-direction: column; justify-content: center; align-items: flex-end;
+      background: rgba(0, 0, 0, 0.25); padding: 0 12px;
+      border-radius: 8px; border: 1px solid rgba(176, 141, 87, 0.35);
+      min-width: 112px; height: 58px;
+    }
+    .secret-dist-num { font-size: 18px; font-weight: 900; color: #e9c46a; line-height: 1.2; }
+    .secret-dist-label { font-size: 10px; color: #b8a692; margin-top: 2px; line-height: 1.2; }
+
+    /* 城市目标卡牌 */
+    .cards-row { display: flex; gap: 8px; }
+    .city-card {
+      flex: 1; border-radius: 8px; background: #f7efde; padding: 6px 4px;
+      border: 2px solid #b89f78; position: relative; text-align: center;
+      box-shadow: 0 2px 5px rgba(60, 35, 15, 0.1); cursor: pointer; transition: 0.18s;
+    }
+    .city-card:hover { transform: translateY(-2px); }
+    .score-corner {
+      position: absolute; top: -2px; left: -2px; width: 20px; height: 20px;
+      border-radius: 5px 0 6px 0; color: #fff; font-weight: 900; font-size: 12px;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .tier-1 { border-color: #3b6e8c; }
+    .tier-1 .score-corner { background: #3b6e8c; }
+    .tier-2 { border-color: #4a7c59; }
+    .tier-2 .score-corner { background: #4a7c59; }
+    .tier-3 { border-color: #b45309; }
+    .tier-3 .score-corner { background: #b45309; }
+    .tier-4 { border-color: #6b4c7a; }
+    .tier-4 .score-corner { background: #6b4c7a; }
+
+    .btn-row { display: flex; gap: 8px; }
+    .act-btn {
+      flex: 1; padding: 9px; border: none; border-radius: 7px; font-size: 13px; font-weight: 800;
+      cursor: pointer; transition: 0.15s;
+    }
+    .btn-roll { background: #9b2226; color: #f4ece1; box-shadow: 0 3px 0 #5c1114; }
+    .btn-roll:hover:not(:disabled) { background: #ae2012; transform: translateY(-1px); }
+    .btn-pass { background: #5c4028; color: #f4ece1; box-shadow: 0 3px 0 #362312; }
+    .btn-pass.must-click { background: #b45309; color: #fff; box-shadow: 0 3px 0 #78350f; }
+    .btn-ai-ctrl { background: #2d6a4f; color: #fff; box-shadow: 0 3px 0 #1b4332; display: none; }
+    .btn-ai-ctrl.paused { background: #b45309; box-shadow: 0 3px 0 #78350f; }
+    .act-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+
+    #wild-modal { display: none; margin-top: 8px; padding: 8px; border-radius: 7px; background: #e9d8b8; border: 1.5px solid #b45309; }
+    .wild-choices { display: flex; gap: 5px; margin-top: 6px; }
+    .wild-chip { flex: 1; padding: 6px 0; border: none; border-radius: 5px; color: #fff; font-weight: 800; font-size: 11.5px; cursor: pointer; }
+
+    /* 玩家卡片与票根 */
+    .player-card { border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; background: #e5d6b8; border: 1.5px solid #c2ab86; }
+    .player-card.active-turn { background: #f7efde; border-color: #8c4a27; box-shadow: 0 3px 8px rgba(92, 58, 33, 0.15); }
+    .p-top { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 800; color: #2c1e14; }
+    .player-name-editable {
+      cursor: pointer; padding: 1px 4px; border-radius: 4px; border-bottom: 1px dashed #8c6239;
+      transition: background 0.15s;
+    }
+    .player-name-editable:hover { background: rgba(140, 98, 57, 0.18); }
+    .role-badge { font-size: 10px; padding: 1px 6px; border-radius: 6px; cursor: pointer; background: #d0bc98; color: #3b2313; margin-left: 4px; }
+    .role-badge.is-ai { background: #cbd5e1; color: #334155; }
+    .secret-inline-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #dfd0b5; border: 1px solid #8c6239; color: #3b281e;
+      padding: 1px 7px; border-radius: 5px; font-weight: 800; font-size: 11px;
+      cursor: pointer;
+    }
+    .ticket-rack { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+    .train-ticket {
+      padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 10.5px; font-weight: 800;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.6);
+    }
+
+    #game-log { font-size: 11px; color: #4a3520; max-height: 115px; overflow-y: auto; line-height: 1.55; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+          onerror="this.onerror=null;this.src='https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/three.js/r128/three.min.js';"></script>
+</head>
+<body>
+
+<div id="edge-hover-tooltip">
+  <span class="edge-color-dot" id="edge-tip-dot"></span>
+  <span id="edge-tip-text">北京 ⟷ 天津 【绿线】</span>
+</div>
+
+<div id="webgl-container">
+  <div id="top-bar">
+    <div class="cam-group">
+      <button class="cam-btn" id="btn-mode-toggle" onclick="toggle2D3DMode()">🗺️ 切换 2D 视图</button>
+      <span id="mode-hint-text">🖱️ 左键旋转 · 右键平移 · 滚轮缩放 · 悬停铁路查看颜色</span>
+    </div>
+    <div class="cam-group">
+      <button class="cam-btn" onclick="resetDefaultView()">📐 复位视角</button>
+      <button class="cam-btn" onclick="focusSecretCity()">🏠 秘密城市</button>
+      <button class="cam-btn" onclick="focusCurrentPlayer()">🎯 当前位置</button>
+    </div>
+  </div>
+
+  <div id="labels-container"></div>
+
+  <div id="route-picker-overlay" onclick="if(event.target===this) closeRoutePicker()">
+    <div class="route-picker-card">
+      <div class="rp-header">
+        <h3 id="rp-title">🔀 请选择行车路线：</h3>
+        <button class="rp-close" onclick="closeRoutePicker()">✕ 取消</button>
+      </div>
+      <div class="rp-sub">💡 鼠标悬停方案可在地图中预览路线，点击方案立即出发。</div>
+      <div class="rp-list" id="rp-options-list"></div>
+    </div>
+  </div>
+
+  <div id="hud-toast">🎲 欢迎来到《山河之旅》，请投掷车票骰子开始旅程</div>
+</div>
+
+<!-- 右侧控制面板 -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <h1>🚂 山河之旅 <span style="font-size:11px; font-weight:normal; color:#d4a373;">Discover China</span></h1>
+    <button onclick="location.reload()" style="background:rgba(255,255,255,0.14); border:none; color:#f4ece1; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px;">🔄 重新开局</button>
+  </div>
+
+  <div class="sidebar-body">
+    <!-- 1. 秘密回家城市卡槽（左右色块等高 58px） -->
+    <div id="secret-hero-box" onclick="focusSecretCity()" title="点击在地图中定位秘密城市">
+      <div class="secret-header-bar">
+        <span>🔒 我的秘密城市 (回家终点)</span>
+        <span id="secret-win-hint">凑齐 10 分后返回此处获胜</span>
+      </div>
+      <div class="secret-main-row">
+        <div class="secret-city-badge">
+          <span class="secret-icon" id="hero-secret-icon">🏯</span>
+          <div>
+            <div class="secret-name" id="hero-secret-name">加载中...</div>
+            <div class="secret-sub" id="hero-secret-region">点击定位城市位置</div>
+          </div>
+        </div>
+        <div class="secret-dist-box">
+          <div class="secret-dist-num" id="hero-secret-dist">-- 跳</div>
+          <div class="secret-dist-label">距当前位置最短路线</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 公共目标城市卡 -->
+    <div class="box">
+      <div class="box-title">
+        <span>🎯 公共目标城市 (途经或停留均可得分)</span>
+        <span id="deck-counter">剩余牌库: 44 张</span>
+      </div>
+      <div class="cards-row" id="public-cards"></div>
+    </div>
+
+    <!-- 3. 骰子与回合操作 -->
+    <div class="box">
+      <div class="box-title">
+        <span id="active-player-banner">当前行动：玩家 1</span>
+        <span id="dice-result-badge" style="color:#8c1d1d; font-weight:900;">等待投掷骰子</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="act-btn btn-roll" id="btn-roll" onclick="rollDice()">🎲 投掷车票骰子</button>
+        <button class="act-btn btn-pass" id="btn-end" onclick="endTurn()" disabled>⏭ 结束回合</button>
+        <button class="act-btn btn-ai-ctrl" id="btn-ai-autorun" onclick="toggleAllAIAutoRun()">▶️ 开始 AI 对局</button>
+      </div>
+
+      <div id="wild-modal">
+        <div style="font-size:11.5px; font-weight:800; color:#5c3a21;">🌈 投出 GO! 请选择要兑换的万能车票颜色：</div>
+        <div class="wild-choices">
+          <button class="wild-chip" style="background:var(--c-red)" onclick="pickWild('red')">红票</button>
+          <button class="wild-chip" style="background:var(--c-yellow)" onclick="pickWild('yellow')">黄票</button>
+          <button class="wild-chip" style="background:var(--c-green)" onclick="pickWild('green')">绿票</button>
+          <button class="wild-chip" style="background:var(--c-teal)" onclick="pickWild('teal')">青票</button>
+          <button class="wild-chip" style="background:var(--c-purple)" onclick="pickWild('purple')">紫票</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 玩家状态与车票架 -->
+    <div class="box">
+      <div class="box-title">
+        <span>👥 玩家列表 (点击名字可改名 · 点击标签切换AI)</span>
+        <button onclick="addPlayer()" style="border:1px solid #7f5539; background:#f7efde; color:#4a3525; border-radius:4px; padding:1px 6px; font-size:10.5px; cursor:pointer; font-weight:bold;">+ 添加玩家</button>
+      </div>
+      <div id="players-container"></div>
+    </div>
+
+    <!-- 5. 日志 -->
+    <div class="box" style="flex:1; display:flex; flex-direction:column;">
+      <div class="box-title">📜 旅程记录</div>
+      <div id="game-log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== 1. 颜色与 50 城完整数据 ====================
+const COLOR_HEX = { red: '#e63946', yellow: '#f4a261', green: '#6a994e', teal: '#2a9d8f', purple: '#8338ec' };
+const COLOR_INT = { red: 0xe63946, yellow: 0xf4a261, green: 0x6a994e, teal: 0x2a9d8f, purple: 0x8338ec };
+const COLOR_CN  = { red: '红', yellow: '黄', green: '绿', teal: '青', purple: '紫' };
+const ALL_COLORS = ['red', 'yellow', 'green', 'teal', 'purple'];
+
+// 经全面复核校准后的 50 座城市坐标与地标贴纸偏移
+const NODES = [
+  { id: "beijing", name: "北京", x: 655, y: 365, score: 0, isStart: true, icon: "🏯", sticker: "🏯🧱", stickerOffset: [-18, -36], region: "首都起点" },
+  { id: "hulunbuir", name: "呼伦贝尔", x: 730, y: 155, score: 4, icon: "🐎", sticker: "🏕️🌿", stickerOffset: [0, -32], region: "内蒙古草原" },
+  { id: "harbin", name: "哈尔滨", x: 800, y: 205, score: 3, icon: "⛷️", sticker: "⛷️❄️", stickerOffset: [5, -35], region: "黑龙江" },
+  { id: "jiamusi", name: "佳木斯", x: 855, y: 200, score: 4, icon: "🌾", sticker: "🏞️🌾", stickerOffset: [15, -25], region: "三江平原" },
+  { id: "changchun", name: "长春", x: 790, y: 268, score: 2, icon: "🚛", sticker: "🚛⚙️", stickerOffset: [32, 5], region: "吉林工业" },
+  { id: "shenyang", name: "沈阳", x: 765, y: 315, score: 2, icon: "🏮", sticker: "🏯🏮", stickerOffset: [-32, -25], region: "辽宁故宫" },
+  { id: "dalian", name: "大连", x: 768, y: 375, score: 1, icon: "⚓", sticker: "🟢⚓", stickerOffset: [28, 22], region: "辽宁海滨" },
+  { id: "hohhot", name: "呼和浩特", x: 590, y: 355, score: 1, icon: "⛺", sticker: "💃⛺", stickerOffset: [-25, -22], region: "内蒙古" },
+  { id: "tianjin", name: "天津", x: 708, y: 398, score: 1, icon: "🎡", sticker: "🎡🌉", stickerOffset: [28, -15], region: "渤海之滨" },
+  { id: "shijiazhuang", name: "石家庄", x: 642, y: 428, score: 1, icon: "🌉", sticker: "🌉🪨", stickerOffset: [-24, -16], region: "河北赵州桥" },
+  { id: "taiyuan", name: "太原", x: 592, y: 425, score: 1, icon: "🏯", sticker: "🏯🏮", stickerOffset: [-22, 24], region: "山西晋祠" },
+  { id: "jinan", name: "济南", x: 690, y: 462, score: 1, icon: "⛲", sticker: "⛲亭", stickerOffset: [24, 10], region: "山东泉城" },
+  { id: "qingdao", name: "青岛", x: 752, y: 452, score: 1, icon: "⛵", sticker: "⛪⛵", stickerOffset: [24, -15], region: "山东海滨" },
+  { id: "zhengzhou", name: "郑州", x: 655, y: 508, score: 1, icon: "🥋", sticker: "🧘‍♂️🥋", stickerOffset: [22, 20], region: "河南少林" },
+  { id: "luoyang", name: "洛阳", x: 608, y: 512, score: 1, icon: "🌺", sticker: "🗿🌺", stickerOffset: [0, 28], region: "龙门石窟" },
+  { id: "xian", name: "西安", x: 562, y: 522, score: 2, icon: "🗿", sticker: "💂🗿", stickerOffset: [-24, 18], region: "陕西兵马俑" },
+  { id: "yinchuan", name: "银川", x: 518, y: 415, score: 2, icon: "🐪", sticker: "🏜️🏰", stickerOffset: [0, -28], region: "宁夏西夏" },
+  { id: "lanzhou", name: "兰州", x: 492, y: 470, score: 2, icon: "🍜", sticker: "🍜🥣", stickerOffset: [-26, 14], region: "甘肃拉面" },
+  { id: "tianshui", name: "天水", x: 508, y: 518, score: 2, icon: "⛰️", sticker: "⛰️🧘", stickerOffset: [-18, 24], region: "麦积山" },
+  { id: "xining", name: "西宁", x: 442, y: 445, score: 3, icon: "🌊", sticker: "🌊🎏", stickerOffset: [-35, 10], region: "青海湖" },
+  { id: "dunhuang", name: "敦煌", x: 345, y: 350, score: 3, icon: "🧚", sticker: "🧚‍♀️🎶", stickerOffset: [10, -35], region: "莫高窟飞天" },
+  { id: "urumqi", name: "乌鲁木齐", x: 255, y: 240, score: 4, icon: "💃", sticker: "💃🕺", stickerOffset: [10, -35], region: "新疆歌舞" },
+  { id: "hohxil", name: "可可西里", x: 320, y: 465, score: 3, icon: "🦌", sticker: "🦌🏔️", stickerOffset: [-15, -38], region: "藏羚羊" },
+  { id: "ngari", name: "阿里地区", x: 140, y: 495, score: 4, icon: "🏔️", sticker: "🏔️❄️", stickerOffset: [-25, -28], region: "冈仁波齐" },
+  { id: "lhasa", name: "拉萨", x: 265, y: 595, score: 4, icon: "🕍", sticker: "🕍☁️", stickerOffset: [35, -10], region: "布达拉宫" },
+  { id: "chengdu", name: "成都", x: 462, y: 595, score: 2, icon: "🐼", sticker: "🐼🎋", stickerOffset: [-5, -35], region: "四川大熊猫" },
+  { id: "chongqing", name: "重庆", x: 525, y: 625, score: 2, icon: "🍲", sticker: "🍲🌶️", stickerOffset: [0, -32], region: "山城火锅" },
+  { id: "lijiang", name: "丽江", x: 405, y: 710, score: 3, icon: "🏘️", sticker: "🏯🌸", stickerOffset: [-15, 28], region: "云南古城" },
+  { id: "kunming", name: "昆明", x: 455, y: 755, score: 3, icon: "🪨", sticker: "🪨⛰️", stickerOffset: [18, 25], region: "云南石林" },
+  { id: "xishuangbanna", name: "西双版纳", x: 425, y: 820, score: 4, icon: "🦚", sticker: "🛕🦚", stickerOffset: [-15, -28], region: "傣族风情" },
+  { id: "guiyang", name: "贵阳", x: 520, y: 700, score: 2, icon: "🏞️", sticker: "🏞️🌊", stickerOffset: [18, 22], region: "黄果树瀑布" },
+  { id: "zhangjiajie", name: "张家界", x: 602, y: 640, score: 2, icon: "⛰️", sticker: "⛰️🌲", stickerOffset: [0, -32], region: "奇峰三千" },
+  { id: "wuhan", name: "武汉", x: 655, y: 605, score: 2, icon: "🌉", sticker: "🌉🚢", stickerOffset: [32, -16], region: "长江大桥" },
+  { id: "hefei", name: "合肥", x: 695, y: 568, score: 2, icon: "🏛️", sticker: "🧑🏿‍⚖️🌙", stickerOffset: [-12, -28], region: "包公故里" },
+  { id: "nanjing", name: "南京", x: 742, y: 548, score: 2, icon: "⛩️", sticker: "🏯⛩️", stickerOffset: [10, -30], region: "六朝古都" },
+  { id: "shanghai", name: "上海", x: 792, y: 575, score: 2, icon: "🗼", sticker: "🗼🏙️", stickerOffset: [32, -10], region: "东方明珠" },
+  { id: "hangzhou", name: "杭州", x: 752, y: 618, score: 2, icon: "🛶", sticker: "🛶🪷", stickerOffset: [-25, 22], region: "西湖三潭" },
+  { id: "nanchang", name: "南昌", x: 688, y: 668, score: 2, icon: "🏯", sticker: "🏯🏮", stickerOffset: [0, 32], region: "滕王阁" },
+  { id: "changsha", name: "长沙", x: 635, y: 662, score: 2, icon: "🌶️", sticker: "⛩️🍁", stickerOffset: [-18, 26], region: "爱晚亭" },
+  { id: "guilin", name: "桂林", x: 585, y: 760, score: 2, icon: "🛶", sticker: "⛰️🛶", stickerOffset: [18, 20], region: "桂林山水" },
+  { id: "nanning", name: "南宁", x: 552, y: 805, score: 3, icon: "🌺", sticker: "🧍‍♀️🌺", stickerOffset: [-24, 5], region: "壮乡歌海" },
+  { id: "haikou", name: "海口", x: 582, y: 888, score: 3, icon: "🌴", sticker: "🌴🏖️", stickerOffset: [-34, -8], region: "海南省" },
+  { id: "guangzhou", name: "广州", x: 642, y: 778, score: 2, icon: "🦁", sticker: "🐐🌾", stickerOffset: [15, -25], region: "五羊雕像" },
+  { id: "macau", name: "澳门", x: 622, y: 838, score: 3, icon: "🏛️", sticker: "🏛️🪷", stickerOffset: [-15, 32], region: "大三巴牌坊" },
+  { id: "hongkong", name: "香港", x: 685, y: 828, score: 3, icon: "🚢", sticker: "🏙️⛵", stickerOffset: [35, 18], region: "维多利亚港" },
+  { id: "fuzhou", name: "福州", x: 755, y: 700, score: 2, icon: "🌳", sticker: "🌳🏠", stickerOffset: [-20, 22], region: "三坊七巷" },
+  { id: "xiamen", name: "厦门", x: 730, y: 765, score: 2, icon: "🎹", sticker: "🏖️🎹", stickerOffset: [22, 18], region: "鼓浪屿" },
+  { id: "taipei", name: "台北", x: 802, y: 722, score: 3, icon: "🧋", sticker: "🏛️🌴", stickerOffset: [0, -28], region: "台湾省" },
+  { id: "kaohsiung", name: "高雄", x: 788, y: 790, score: 3, icon: "🦋", sticker: "🦋🌺", stickerOffset: [12, 28], region: "台湾省" }
+];
+
+const EDGES = [
+  { u: "hulunbuir", v: "harbin", color: "red" },
+  { u: "harbin", v: "jiamusi", color: "teal" },
+  { u: "harbin", v: "changchun", color: "purple" },
+  { u: "changchun", v: "shenyang", color: "yellow" },
+  { u: "shenyang", v: "dalian", color: "green" },
+  { u: "shenyang", v: "beijing", color: "yellow" },
+  { u: "dalian", v: "qingdao", color: "teal" },
+  { u: "beijing", v: "hohhot", color: "red" },
+  { u: "beijing", v: "shijiazhuang", color: "teal" },
+  { u: "beijing", v: "tianjin", color: "green" },
+  { u: "tianjin", v: "jinan", color: "red" },
+  { u: "shijiazhuang", v: "taiyuan", color: "yellow" },
+  { u: "shijiazhuang", v: "jinan", color: "green" },
+  { u: "hohhot", v: "taiyuan", color: "yellow" },
+  { u: "hohhot", v: "yinchuan", color: "green" },
+  { u: "jinan", v: "qingdao", color: "yellow" },
+  { u: "jinan", v: "zhengzhou", color: "yellow" },
+  { u: "jinan", v: "nanjing", color: "red" },
+  { u: "qingdao", v: "shanghai", color: "teal" },
+  { u: "taiyuan", v: "yinchuan", color: "purple" },
+  { u: "taiyuan", v: "zhengzhou", color: "red" },
+  { u: "zhengzhou", v: "luoyang", color: "yellow" },
+  { u: "zhengzhou", v: "wuhan", color: "teal" },
+  { u: "zhengzhou", v: "hefei", color: "green" },
+  { u: "luoyang", v: "xian", color: "purple" },
+  { u: "yinchuan", v: "lanzhou", color: "yellow" },
+  { u: "yinchuan", v: "xining", color: "purple" },
+  { u: "lanzhou", v: "xining", color: "teal" },
+  { u: "lanzhou", v: "tianshui", color: "green" },
+  { u: "tianshui", v: "xian", color: "red" },
+  { u: "tianshui", v: "chengdu", color: "yellow" },
+  { u: "xian", v: "chongqing", color: "purple" },
+  { u: "xian", v: "zhangjiajie", color: "red" },
+  { u: "xining", v: "dunhuang", color: "green" },
+  { u: "xining", v: "hohxil", color: "purple" },
+  { u: "xining", v: "lijiang", color: "red" },
+  { u: "dunhuang", v: "urumqi", color: "teal" },
+  { u: "dunhuang", v: "hohxil", color: "yellow" },
+  { u: "urumqi", v: "ngari", color: "red" },
+  { u: "ngari", v: "hohxil", color: "green" },
+  { u: "ngari", v: "lhasa", color: "teal" },
+  { u: "hohxil", v: "lhasa", color: "red" },
+  { u: "lhasa", v: "lijiang", color: "purple" },
+  { u: "chengdu", v: "chongqing", color: "green" },
+  { u: "chengdu", v: "lijiang", color: "green" },
+  { u: "chongqing", v: "zhangjiajie", color: "yellow" },
+  { u: "chongqing", v: "guiyang", color: "red" },
+  { u: "chongqing", v: "kunming", color: "purple" },
+  { u: "lijiang", v: "kunming", color: "teal" },
+  { u: "lijiang", v: "xishuangbanna", color: "yellow" },
+  { u: "kunming", v: "xishuangbanna", color: "red" },
+  { u: "kunming", v: "guiyang", color: "teal" },
+  { u: "kunming", v: "nanning", color: "green" },
+  { u: "guiyang", v: "changsha", color: "purple" },
+  { u: "guiyang", v: "guilin", color: "yellow" },
+  { u: "zhangjiajie", v: "wuhan", color: "purple" },
+  { u: "zhangjiajie", v: "changsha", color: "green" },
+  { u: "zhangjiajie", v: "guilin", color: "teal" },
+  { u: "wuhan", v: "hefei", color: "yellow" },
+  { u: "wuhan", v: "nanchang", color: "green" },
+  { u: "wuhan", v: "changsha", color: "red" },
+  { u: "hefei", v: "nanjing", color: "purple" },
+  { u: "hefei", v: "hangzhou", color: "yellow" },
+  { u: "nanjing", v: "shanghai", color: "green" },
+  { u: "shanghai", v: "hangzhou", color: "red" },
+  { u: "shanghai", v: "taipei", color: "yellow", dashed: true },
+  { u: "hangzhou", v: "nanchang", color: "green" },
+  { u: "hangzhou", v: "fuzhou", color: "purple" },
+  { u: "nanchang", v: "fuzhou", color: "teal" },
+  { u: "nanchang", v: "changsha", color: "yellow" },
+  { u: "fuzhou", v: "xiamen", color: "red" },
+  { u: "xiamen", v: "hongkong", color: "purple" },
+  { u: "taipei", v: "kaohsiung", color: "purple", dashed: true },
+  { u: "kaohsiung", v: "hongkong", color: "yellow", dashed: true },
+  { u: "changsha", v: "guilin", color: "red" },
+  { u: "changsha", v: "guangzhou", color: "teal" },
+  { u: "guilin", v: "nanning", color: "purple" },
+  { u: "guilin", v: "guangzhou", color: "green" },
+  { u: "nanning", v: "haikou", color: "red" },
+  { u: "haikou", v: "macau", color: "yellow", dashed: true },
+  { u: "guangzhou", v: "macau", color: "green" },
+  { u: "guangzhou", v: "hongkong", color: "purple" },
+  { u: "macau", v: "hongkong", color: "teal" }
+];
+
+const BOARD_SIZE = 74;
+const TEX_RES = 4096;
+function mapTo3D(x, y) {
+  return {
+    x: (x - 470) / 780 * BOARD_SIZE,
+    z: (y - 525) / 830 * BOARD_SIZE
+  };
+}
+function mapToCanvas(x, y) {
+  return {
+    cx: (x - 80) / 780 * TEX_RES,
+    cy: (y - 110) / 830 * TEX_RES
+  };
+}
+
+function lngLatToCanvas(lng, lat, provinceName = '') {
+  if (provinceName === '台湾省' || (lng > 119.2 && lat > 21.5 && lat < 25.8)) {
+    const bx = 776 + ((lng - 120.0) / 2.0) * 34;
+    const by = 710 + ((25.3 - lat) / 3.4) * 100;
+    return mapToCanvas(bx, by);
+  }
+  if (provinceName === '海南省' && lat >= 18.0) {
+    const bx = 556 + ((lng - 108.6) / 2.5) * 48;
+    const by = 882 + ((20.15 - lat) / 2.0) * 36;
+    return mapToCanvas(bx, by);
+  }
+
+  const normX = (lng - 73.5) / (135.0 - 73.5);
+  const curvedX = Math.pow(Math.max(0, Math.min(1, normX)), 0.88);
+  const bx = 105 + curvedX * 765;
+
+  const normY = (53.5 - lat) / (53.5 - 18.0);
+  const curvedY = Math.pow(Math.max(0, Math.min(1.15, normY)), 1.04);
+  const by = 122 + curvedY * 785;
+
+  return mapToCanvas(bx, by);
+}
+
+function lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH) {
+  const nx = (lng - 105.5) / (122.5 - 105.5);
+  const ny = (23.8 - lat) / (23.8 - 3.2);
+  return {
+    x: boxX + nx * boxW,
+    y: boxY + ny * boxH
+  };
+}
+
+NODES.forEach(n => {
+  const pos = mapTo3D(n.x, n.y);
+  n.wx = pos.x;
+  n.wz = pos.z;
+});
+
+// ==================== 2. 地图纹理绘制 ====================
+const PROVINCE_PALETTE = {
+  '新疆维吾尔自治区': '#d4a259',
+  '西藏自治区': '#c49a62',
+  '青海省': '#cca668',
+  '甘肃省': '#d99b4e',
+  '内蒙古自治区': '#a3be6c',
+  '宁夏回族自治区': '#dc9e54',
+  '黑龙江省': '#8fb364',
+  '吉林省': '#9ec06e',
+  '辽宁省': '#b5c774',
+  '河北省': '#d9b864',
+  '北京市': '#e76f51',
+  '天津市': '#f4a261',
+  '山西省': '#d4ae5e',
+  '陕西省': '#cfa258',
+  '山东省': '#dfbe68',
+  '河南省': '#dbb060',
+  '江苏省': '#abc972',
+  '安徽省': '#b4cf78',
+  '上海市': '#e76f51',
+  '浙江省': '#92bc64',
+  '江西省': '#a2c46e',
+  '福建省': '#86b35c',
+  '台湾省': '#84b560',
+  '湖北省': '#b0c974',
+  '湖南省': '#a2c46c',
+  '广东省': '#92b860',
+  '广西壮族自治区': '#88b35c',
+  '海南省': '#7eb058',
+  '四川省': '#9fc26c',
+  '重庆市': '#cca45e',
+  '贵州省': '#96ba66',
+  '云南省': '#86b05a',
+  '香港特别行政区': '#e76f51',
+  '澳门特别行政区': '#e76f51'
+};
+
+const TAIWAN_ISLAND_POLY = [
+  [802, 704], [808, 710], [811, 722], [809, 740], [804, 762], [797, 782],
+  [792, 800], [790, 810], [785, 805], [781, 793], [777, 776], [776, 758],
+  [781, 738], [789, 718], [796, 708]
+];
+
+const HAINAN_ISLAND_POLY = [
+  [582, 879], [595, 882], [602, 889], [596, 901], [586, 912], [574, 919],
+  [562, 917], [555, 909], [554, 897], [562, 887], [573, 881]
+];
+
+function drawTaiwanAndHainanWithProvinceBorders(ctx) {
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+
+  // 1. 雷州半岛突出部
+  const leizhou = [[575, 842], [590, 845], [590, 870], [576, 872], [572, 855]];
+  ctx.fillStyle = '#92b860';
+  ctx.strokeStyle = '#6f4e37';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  leizhou.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  // 2. 台湾省本岛
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 35, 50, 0.5)';
+  ctx.shadowBlur = 28;
+  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = '#84b560';
+  ctx.strokeStyle = '#6f4e37';
+  ctx.lineWidth = 16;
+  ctx.beginPath();
+  TAIWAN_ISLAND_POLY.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // 台湾岛内区域色块与分界线
+  ctx.save();
+  ctx.beginPath();
+  TAIWAN_ISLAND_POLY.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.clip();
+
+  const twSouth = mapToCanvas(788, 788);
+  ctx.fillStyle = '#9ec06e';
+  ctx.fillRect(twSouth.cx - 180, twSouth.cy - 90, 360, 240);
+
+  ctx.strokeStyle = 'rgba(85, 55, 25, 0.78)';
+  ctx.lineWidth = 5.5;
+  const twInternalBorders = [
+    [[797, 706], [795, 755], [788, 806]],
+    [[781, 736], [795, 740], [809, 738]],
+    [[777, 766], [793, 770], [805, 764]]
+  ];
+  twInternalBorders.forEach(line => {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => {
+      const { cx, cy } = mapToCanvas(x, y);
+      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 3. 海南省本岛
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 35, 50, 0.5)';
+  ctx.shadowBlur = 28;
+  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = '#7eb058';
+  ctx.strokeStyle = '#6f4e37';
+  ctx.lineWidth = 16;
+  ctx.beginPath();
+  HAINAN_ISLAND_POLY.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // 海南岛内区域色块与分界线
+  ctx.save();
+  ctx.beginPath();
+  HAINAN_ISLAND_POLY.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.clip();
+
+  const hnSouth = mapToCanvas(576, 908);
+  ctx.fillStyle = '#92b860';
+  ctx.fillRect(hnSouth.cx - 200, hnSouth.cy - 45, 400, 150);
+
+  ctx.strokeStyle = 'rgba(85, 55, 25, 0.78)';
+  ctx.lineWidth = 5.5;
+  const hnInternalBorders = [
+    [[558, 895], [578, 899], [598, 893]],
+    [[578, 880], [576, 899], [572, 918]]
+  ];
+  hnInternalBorders.forEach(line => {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => {
+      const { cx, cy } = mapToCanvas(x, y);
+      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 4. 海峡分界虚线
+  ctx.save();
+  ctx.strokeStyle = 'rgba(85, 55, 25, 0.65)';
+  ctx.lineWidth = 5;
+  ctx.setLineDash([14, 10]);
+  const straitBorders = [
+    [[780, 695], [768, 740], [752, 785]],
+    [[558, 875], [582, 874], [606, 877]]
+  ];
+  straitBorders.forEach(line => {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => {
+      const { cx, cy } = mapToCanvas(x, y);
+      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 5. 澎湖列岛与钓鱼岛
+  ctx.fillStyle = '#84b560';
+  ctx.strokeStyle = '#5c3a21';
+  ctx.lineWidth = 6;
+  const penghu = mapToCanvas(768, 770);
+  ctx.beginPath(); ctx.arc(penghu.cx, penghu.cy, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  const diaoyu = mapToCanvas(825, 688);
+  ctx.beginPath(); ctx.arc(diaoyu.cx, diaoyu.cy, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawStandardSouthChinaSeaInset(ctx, geoJsonData) {
+  const nhTopLeft = mapToCanvas(748, 795);
+  const boxX = nhTopLeft.cx, boxY = nhTopLeft.cy;
+  const boxW = 465, boxH = 595;
+
+  ctx.save();
+  ctx.fillStyle = '#629eb5';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+
+  ctx.beginPath();
+  ctx.rect(boxX, boxY, boxW, boxH);
+  ctx.clip();
+
+  ctx.fillStyle = '#92b860';
+  ctx.strokeStyle = '#5c3a21';
+  ctx.lineWidth = 4;
+
+  if (geoJsonData && geoJsonData.features) {
+    geoJsonData.features.forEach(feat => {
+      const geom = feat.geometry;
+      if (!geom) return;
+      const pName = (feat.properties && feat.properties.name) || '';
+
+      if (geom.type === 'MultiLineString' || geom.type === 'LineString') {
+        const lines = geom.type === 'LineString' ? [geom.coordinates] : geom.coordinates;
+        ctx.strokeStyle = '#8c1d1d';
+        ctx.lineWidth = 6;
+        lines.forEach(line => {
+          ctx.beginPath();
+          let started = false;
+          line.forEach(([lng, lat]) => {
+            if (lng >= 105 && lng <= 123 && lat >= 3 && lat <= 24) {
+              const p = lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH);
+              if (!started) { ctx.moveTo(p.x, p.y); started = true; }
+              else ctx.lineTo(p.x, p.y);
+            }
+          });
+          ctx.stroke();
+        });
+        return;
+      }
+
+      const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : []);
+      ctx.fillStyle = PROVINCE_PALETTE[pName] || '#9ec06e';
+      ctx.strokeStyle = 'rgba(85, 55, 25, 0.85)';
+      ctx.lineWidth = 4;
+      polys.forEach(poly => {
+        poly.forEach(ring => {
+          ctx.beginPath();
+          let pts = 0;
+          ring.forEach(([lng, lat]) => {
+            if (lng >= 104 && lng <= 124 && lat >= 3 && lat <= 25) {
+              const p = lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH);
+              if (pts === 0) ctx.moveTo(p.x, p.y);
+              else ctx.lineTo(p.x, p.y);
+              pts++;
+            }
+          });
+          if (pts > 2) { ctx.closePath(); ctx.fill(); ctx.stroke(); }
+        });
+      });
+    });
+  } else {
+    const coast = [[106,22], [108,21.5], [109.8,21.4], [110.3,20.2], [110.6,21.2], [113.5,22.2], [117,23.5], [117,24], [106,24]];
+    ctx.beginPath();
+    coast.forEach(([lng, lat], i) => {
+      const p = lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    const hnInset = [[110.2,20.0], [111.0,19.6], [109.5,18.2], [108.6,19.1], [109.2,19.9]];
+    ctx.beginPath();
+    hnInset.forEach(([lng, lat], i) => {
+      const p = lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    const twInset = [[120.2,23.8], [121.5,23.8], [120.8,21.9], [120.1,22.6]];
+    ctx.beginPath();
+    twInset.forEach(([lng, lat], i) => {
+      const p = lngLatToSouthChinaSeaBox(lng, lat, boxX, boxY, boxW, boxH);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+
+  const islandsGroups = [
+    { name: '东沙群岛', lng: 116.7, lat: 20.7, dots: [[0,0], [6,-4]] },
+    { name: '西沙群岛', lng: 112.0, lat: 16.5, dots: [[0,0], [-10,-6], [8,-8], [4,8], [-6,6]] },
+    { name: '中沙群岛', lng: 114.8, lat: 15.8, dots: [[0,0], [12,4]] },
+    { name: '黄岩岛',   lng: 117.8, lat: 15.1, dots: [[0,0]] },
+    { name: '南沙群岛', lng: 114.2, lat: 10.0, dots: [[0,0], [-18,-15], [14,-12], [20,10], [-12,18], [6,22], [-22,5], [12,-28]] },
+    { name: '曾母暗沙', lng: 112.3, lat: 4.0,  dots: [[0,0]] }
+  ];
+  ctx.font = 'bold 20px "PingFang SC", sans-serif';
+  ctx.textAlign = 'center';
+  islandsGroups.forEach(ig => {
+    const center = lngLatToSouthChinaSeaBox(ig.lng, ig.lat, boxX, boxY, boxW, boxH);
+    ctx.fillStyle = '#fde68a';
+    ig.dots.forEach(([dx, dy]) => {
+      ctx.beginPath(); ctx.arc(center.x + dx, center.y + dy, 4.5, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(ig.name, center.x, center.y - 12);
+  });
+
+  const tenDashes = [
+    [[121.8, 21.8], [121.2, 20.1]],
+    [[120.2, 18.2], [119.5, 16.4]],
+    [[119.2, 14.5], [118.8, 12.6]],
+    [[118.2, 10.6], [117.2, 8.8]],
+    [[115.8, 6.8],  [114.0, 5.2]],
+    [[112.5, 3.8],  [110.5, 4.1]],
+    [[109.2, 5.8],  [108.6, 7.6]],
+    [[109.4, 10.2], [109.8, 12.2]],
+    [[110.0, 14.5], [109.2, 16.4]],
+    [[108.2, 18.2], [107.6, 20.0]]
+  ];
+  ctx.strokeStyle = '#9b2226';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  tenDashes.forEach(([pStart, pEnd]) => {
+    const s = lngLatToSouthChinaSeaBox(pStart[0], pStart[1], boxX, boxY, boxW, boxH);
+    const e = lngLatToSouthChinaSeaBox(pEnd[0], pEnd[1], boxX, boxY, boxW, boxH);
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y);
+    ctx.lineTo(e.x, e.y);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+
+  ctx.strokeStyle = '#f2e2c4';
+  ctx.lineWidth = 14;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = '#2b2d42';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  ctx.fillStyle = '#2b2d42';
+  ctx.fillRect(boxX + boxW - 215, boxY + boxH - 86, 215, 86);
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 34px "PingFang SC", sans-serif';
+  ctx.fillText('南海诸岛', boxX + boxW - 107, boxY + boxH - 44);
+  ctx.font = '20px sans-serif';
+  ctx.fillText('1:32000000', boxX + boxW - 107, boxY + boxH - 14);
+}
+
+function drawOriginalCompass(ctx, cx, cy, R) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = '#ebdcc4';
+  ctx.strokeStyle = '#2b2d42';
+  ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.82, 0, Math.PI * 2); ctx.stroke();
+
+  for (let i = 0; i < 8; i++) {
+    ctx.save();
+    ctx.rotate(i * Math.PI / 4);
+    const len = (i % 2 === 0) ? R * 0.95 : R * 0.62;
+    const wid = (i % 2 === 0) ? R * 0.22 : R * 0.14;
+    ctx.fillStyle = '#2b2d42';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-wid, -wid); ctx.lineTo(0, -len); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c8b294';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(wid, -wid); ctx.lineTo(0, -len); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-wid, -wid); ctx.lineTo(0, -len); ctx.lineTo(wid, -wid); ctx.closePath(); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.fillStyle = '#6da8be'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#2b2d42';
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.08, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#2b2d42';
+  ctx.font = `900 ${Math.round(R * 0.36)}px "Comic Sans MS", "Arial Rounded MT Bold", sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('N', 0, -R * 1.25);
+  ctx.fillText('S', 0, R * 1.28);
+  ctx.fillText('W', -R * 1.30, 0);
+  ctx.fillText('E', R * 1.30, 0);
+  ctx.restore();
+}
+
+function drawStickerBackdrop(ctx, cx, cy, w, h) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(35, 20, 5, 0.42)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 6;
+  ctx.fillStyle = '#f2e2c4';
+  ctx.strokeStyle = '#8c6239';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 34);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawVectorPotala(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  drawStickerBackdrop(ctx, 0, 0, 230, 140);
+  ctx.fillStyle = '#f5ebe0'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(-95, 55); ctx.lineTo(-70, -15); ctx.lineTo(70, -15); ctx.lineTo(95, 55); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#c1121f';
+  ctx.beginPath(); ctx.moveTo(-52, 10); ctx.lineTo(-42, -45); ctx.lineTo(42, -45); ctx.lineTo(52, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffb703';
+  ctx.beginPath(); ctx.moveTo(-50, -45); ctx.lineTo(0, -65); ctx.lineTo(50, -45); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#2b2d42';
+  for (let x = -55; x <= 55; x += 22) { ctx.fillRect(x - 4, 18, 8, 14); }
+  for (let x = -28; x <= 28; x += 18) { ctx.fillRect(x - 3, -30, 6, 12); }
+  ctx.restore();
+}
+
+function drawVectorBeijingGreatWall(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  ctx.fillStyle = '#52796f'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(-40, 20, 75, Math.PI, 0); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d4a373';
+  ctx.beginPath(); ctx.moveTo(-105, 15); ctx.quadraticCurveTo(-30, -45, 45, 5); ctx.lineTo(45, 35); ctx.quadraticCurveTo(-30, -15, -105, 45); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#bc6c25';
+  ctx.fillRect(-55, -52, 42, 38); ctx.strokeRect(-55, -52, 42, 38);
+  for (let x = -55; x <= -15; x += 12) { ctx.fillRect(x, -62, 8, 10); }
+
+  ctx.save(); ctx.translate(85, -10);
+  drawStickerBackdrop(ctx, 0, 0, 145, 135);
+  ctx.fillStyle = '#e63946'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 4;
+  ctx.fillRect(-45, 10, 90, 38); ctx.strokeRect(-45, 10, 90, 38);
+  const roofs = [[62, 10, -8], [48, -8, -26], [34, -26, -46]];
+  roofs.forEach(([rw, y1, y2]) => {
+    ctx.fillStyle = '#1d3557';
+    ctx.beginPath(); ctx.moveTo(-rw, y1); ctx.lineTo(0, y2); ctx.lineTo(rw, y1); ctx.closePath(); ctx.fill(); ctx.stroke();
+  });
+  ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.arc(0, -52, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawVectorHotpot(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  drawStickerBackdrop(ctx, 0, 0, 145, 130);
+  ctx.fillStyle = '#d97706'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(0, 5, 54, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath(); ctx.arc(0, 5, 44, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#fde047'; ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-15, -35); ctx.lineTo(-15, 45); ctx.moveTo(15, -35); ctx.lineTo(15, 45);
+  ctx.moveTo(-38, -10); ctx.lineTo(38, -10); ctx.moveTo(-38, 20); ctx.lineTo(38, 20);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawVectorPanda(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  drawStickerBackdrop(ctx, 0, 0, 130, 140);
+  ctx.strokeStyle = '#40916c'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(35, 50); ctx.lineTo(42, -50); ctx.stroke();
+  ctx.fillStyle = '#2b2d42';
+  ctx.beginPath(); ctx.arc(-28, -38, 14, 0, Math.PI * 2); ctx.arc(18, -38, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-5, 22, 34, 28, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fffdf7'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(-5, -14, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-5, 26, 22, 18, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2b2d42';
+  ctx.beginPath(); ctx.ellipse(-16, -16, 8, 10, -0.2, 0, Math.PI * 2); ctx.ellipse(6, -16, 8, 10, 0.2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawVectorOrientalPearl(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  ctx.strokeStyle = '#d4c5b0'; ctx.lineWidth = 12;
+  ctx.beginPath(); ctx.moveTo(-25, 95); ctx.lineTo(0, 20); ctx.lineTo(25, 95); ctx.stroke();
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(0, 95); ctx.lineTo(0, -110); ctx.stroke();
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath(); ctx.arc(0, 25, 26, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -45, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawVectorAntelope(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  drawStickerBackdrop(ctx, 0, -10, 125, 165);
+  ctx.fillStyle = '#c68b59'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.ellipse(0, 15, 32, 18, -0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(-18, 28); ctx.lineTo(-24, 62); ctx.moveTo(18, 25); ctx.lineTo(22, 62); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(15, 5); ctx.lineTo(28, -28); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(32, -32, 14, 9, 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(28, -38); ctx.lineTo(18, -82); ctx.moveTo(34, -38); ctx.lineTo(30, -82); ctx.stroke();
+  ctx.restore();
+}
+
+function drawVectorTruck(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  drawStickerBackdrop(ctx, 0, 0, 150, 115);
+  ctx.fillStyle = '#386641'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.fillRect(-55, -32, 75, 48); ctx.strokeRect(-55, -32, 75, 48);
+  ctx.fillStyle = '#6a994e';
+  ctx.fillRect(20, -16, 36, 32); ctx.strokeRect(20, -16, 36, 32);
+  ctx.fillStyle = '#2b2d42';
+  ctx.beginPath(); ctx.arc(-32, 22, 16, 0, Math.PI * 2); ctx.arc(32, 22, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawVectorSailboat(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  ctx.fillStyle = '#5c4033'; ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(-55, 15); ctx.lineTo(55, 15); ctx.lineTo(38, 42); ctx.lineTo(-38, 42); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#f2e2c4';
+  ctx.beginPath(); ctx.moveTo(-5, 10); ctx.lineTo(-5, -65); ctx.lineTo(-45, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, 10); ctx.lineTo(5, -75); ctx.lineTo(48, 10); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function drawVectorWhale(ctx, cx, cy, sc = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc);
+  ctx.fillStyle = '#2b4c6f';
+  ctx.beginPath();
+  ctx.moveTo(-65, 15);
+  ctx.quadraticCurveTo(-20, -35, 35, 0);
+  ctx.lineTo(65, -22); ctx.lineTo(55, 15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-25, -18); ctx.quadraticCurveTo(-35, -45, -50, -40);
+  ctx.moveTo(-25, -18); ctx.quadraticCurveTo(-15, -45, 0, -40); ctx.stroke();
+  ctx.restore();
+}
+
+function drawHandDrawnTree(ctx, cx, cy, scale = 1, type = 'pine') {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#5c3a21';
+  ctx.fillRect(-5, 0, 10, 20);
+  if (type === 'pine') {
+    ctx.fillStyle = '#2d5a40';
+    ctx.beginPath(); ctx.moveTo(0, -52); ctx.lineTo(25, -10); ctx.lineTo(-25, -10); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -30); ctx.lineTo(30, 8); ctx.lineTo(-30, 8); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.strokeStyle = '#6f4518'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 20); ctx.quadraticCurveTo(8, -15, 0, -40); ctx.stroke();
+    ctx.fillStyle = '#408058';
+    for (let a = 0; a < 5; a++) {
+      ctx.save();
+      ctx.translate(0, -40);
+      ctx.rotate((a - 2) * 0.55);
+      ctx.beginPath(); ctx.ellipse(20, 0, 22, 6.5, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
+function drawHandDrawnYurt(ctx, cx, cy, scale = 1) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#f2e2c4';
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.rect(-34, -10, 68, 32); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#2a9d8f';
+  ctx.beginPath(); ctx.arc(0, -10, 35, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(-10, -2, 20, 24);
+  ctx.restore();
+}
+
+function drawDarkRockMound(ctx, cx, cy, scale = 1) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = '#4a3222';
+  ctx.beginPath();
+  ctx.arc(0, 0, 24, Math.PI, 0);
+  ctx.arc(16, 0, 16, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFishSchool(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = 'rgba(20, 50, 75, 0.45)';
+  for (let i = 0; i < 9; i++) {
+    const ox = (i % 3) * 34 - 30 + (i * 7) % 15;
+    const oy = Math.floor(i / 3) * 20 - 15;
+    ctx.beginPath(); ctx.ellipse(ox, oy, 11, 4.5, -0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(ox + 9, oy); ctx.lineTo(ox + 16, oy - 5); ctx.lineTo(ox + 16, oy + 5); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function renderFullBoardCanvas(canvas, geoJsonData = null) {
+  const ctx = canvas.getContext('2d');
+
+  // 1. 海洋背景
+  const seaGrad = ctx.createRadialGradient(TEX_RES * 0.55, TEX_RES * 0.5, 300, TEX_RES * 0.5, TEX_RES * 0.5, TEX_RES * 0.78);
+  seaGrad.addColorStop(0, '#78b0c4');
+  seaGrad.addColorStop(0.65, '#5c97ad');
+  seaGrad.addColorStop(1, '#3f7a91');
+  ctx.fillStyle = seaGrad;
+  ctx.fillRect(0, 0, TEX_RES, TEX_RES);
+
+  ctx.strokeStyle = 'rgba(255, 248, 225, 0.28)';
+  ctx.lineWidth = 6;
+  for (let y = 120; y < TEX_RES; y += 165) {
+    for (let x = 90; x < TEX_RES; x += 250) {
+      ctx.beginPath(); ctx.arc(x, y, 38, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 55, y + 20, 28, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    }
+  }
+
+  // 2. 境外大陆底色
+  const neighborPoly = [
+    [80,110], [860,110], [860,280], [790,340], [665,250], [575,330], [475,345], [365,305], [275,190], [205,215],
+    [160,340], [95,435], [110,515], [235,620], [370,695], [375,770], [395,845], [470,840], [535,815], [510,940], [80,940]
+  ];
+  ctx.fillStyle = '#b89368';
+  ctx.strokeStyle = '#7f5539';
+  ctx.lineWidth = 14;
+  ctx.beginPath();
+  neighborPoly.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+
+  const lake1 = mapToCanvas(135, 345), lake2 = mapToCanvas(115, 295);
+  ctx.fillStyle = '#6da8be'; ctx.strokeStyle = '#d5b886'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.ellipse(lake1.cx, lake1.cy, 130, 36, -0.05, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(lake2.cx, lake2.cy, 62, 22, 0.15, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // 3. 中国大陆主体多边形底板
+  const chinaPoly = [
+    [725,120], [760,118], [795,125], [840,150], [875,180], [870,220], [865,255], [835,285], [815,310], [790,340],
+    [755,348], [740,360], [725,385], [755,392], [775,410], [790,455], [755,485], [775,520], [795,550], [815,610],
+    [805,655], [795,695], [775,745], [755,785], [720,820], [695,845], [650,852], [615,855], [588,872], [575,868],
+    [565,840], [535,815], [495,830], [470,840], [425,848], [395,845], [375,770], [370,695], [310,660], [235,620],
+    [165,570], [110,515], [95,435], [130,385], [160,340], [185,270], [205,215], [240,195], [275,190], [320,250],
+    [365,305], [420,330], [475,345], [525,340], [575,330], [620,285], [665,250], [695,180]
+  ];
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 35, 50, 0.55)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 14;
+
+  const landGrad = ctx.createLinearGradient(500, 500, 3500, 3500);
+  landGrad.addColorStop(0, '#d4a668');
+  landGrad.addColorStop(0.5, '#d8be84');
+  landGrad.addColorStop(1, '#a3c474');
+  ctx.fillStyle = landGrad;
+  ctx.strokeStyle = '#6f4e37';
+  ctx.lineWidth = 18;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  chinaPoly.forEach(([x, y], i) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  drawTaiwanAndHainanWithProvinceBorders(ctx);
+
+  // 4. 叠加 GeoJSON 全境 34 省真实分省重彩图斑与省界
+  if (geoJsonData && geoJsonData.features) {
+    ctx.save();
+    geoJsonData.features.forEach(feat => {
+      const pName = feat.properties && feat.properties.name ? feat.properties.name : '';
+      const geom = feat.geometry;
+      if (!geom) return;
+
+      ctx.fillStyle = PROVINCE_PALETTE[pName] || '#cfa86e';
+      ctx.strokeStyle = 'rgba(85, 55, 25, 0.78)';
+      ctx.lineWidth = 5.5;
+      ctx.lineJoin = 'round';
+
+      const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : []);
+      polys.forEach(poly => {
+        poly.forEach(ring => {
+          if (ring.length < 5) return;
+          ctx.beginPath();
+          let validPts = 0;
+          ring.forEach(([lng, lat]) => {
+            if (lat < 17.8) return;
+            const { cx, cy } = lngLatToCanvas(lng, lat, pName);
+            if (validPts === 0) ctx.moveTo(cx, cy);
+            else ctx.lineTo(cx, cy);
+            validPts++;
+          });
+          if (validPts > 3) {
+            ctx.closePath();
+            ctx.globalAlpha = 0.75;
+            ctx.fill();
+            ctx.globalAlpha = 0.92;
+            ctx.stroke();
+          }
+        });
+      });
+    });
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(95, 65, 35, 0.68)';
+    ctx.lineWidth = 6;
+    const provinceBorders = [
+      [[140,445], [245,450], [345,425], [385,320]],
+      [[345,425], [395,525], [395,685]],
+      [[395,525], [485,515], [545,515], [585,435], [520,340]],
+      [[385,320], [495,385], [590,355], [715,280], [785,205]],
+      [[735,235], [845,245]], [[725,295], [815,305]],
+      [[590,355], [592,425], [585,635], [565,755], [535,815]],
+      [[655,365], [655,508], [655,605], [642,778]],
+      [[725,385], [705,495], [725,585], [715,725], [730,765]],
+      [[545,515], [655,508], [755,485]],
+      [[462,595], [585,635], [685,615], [792,575]],
+      [[455,755], [565,755], [665,735], [755,700]]
+    ];
+    provinceBorders.forEach(poly => {
+      ctx.beginPath();
+      poly.forEach(([x, y], i) => {
+        const { cx, cy } = mapToCanvas(x, y);
+        if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+      });
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(75, 45, 20, 0.82)';
+  ctx.lineWidth = 5;
+  const islandSubBorders = [
+    [[797, 706], [795, 755], [788, 806]],
+    [[781, 736], [795, 740], [807, 738]],
+    [[778, 766], [793, 770], [803, 764]],
+    [[558, 895], [578, 899], [598, 893]],
+    [[578, 880], [576, 899], [572, 918]]
+  ];
+  islandSubBorders.forEach(line => {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => {
+      const { cx, cy } = mapToCanvas(x, y);
+      if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 5. 塔克拉玛干沙漠与青海湖
+  const desert = mapToCanvas(185, 368);
+  ctx.fillStyle = '#b08b5e';
+  ctx.beginPath(); ctx.ellipse(desert.cx, desert.cy, 250, 115, -0.05, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c4a274';
+  ctx.beginPath(); ctx.ellipse(desert.cx + 20, desert.cy + 15, 170, 65, -0.05, 0, Math.PI * 2); ctx.fill();
+
+  const qhLake = mapToCanvas(405, 462);
+  ctx.fillStyle = '#3b9ab2'; ctx.strokeStyle = '#f2e2c4'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.ellipse(qhLake.cx, qhLake.cy, 95, 42, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // 6. 周边生态
+  const pineCoords = [
+    [810,115], [845,135], [865,165], [835,175], [860,285], [840,305],
+    [705,275], [685,290], [115,255], [140,275], [105,315], [130,360]
+  ];
+  pineCoords.forEach(([x, y], idx) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    drawHandDrawnTree(ctx, cx, cy, 0.95 + (idx % 3) * 0.18, 'pine');
+  });
+
+  const palmCoords = [
+    [100,565], [135,595], [105,645], [155,690], [115,735], [185,725], [225,775],
+    [175,815], [260,825], [295,775], [345,865], [385,895], [495,885]
+  ];
+  palmCoords.forEach(([x, y], idx) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    drawHandDrawnTree(ctx, cx, cy, 0.95 + (idx % 2) * 0.2, 'palm');
+  });
+
+  [[425,270], [490,305], [545,275], [580,295]].forEach(([x, y]) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    drawHandDrawnYurt(ctx, cx, cy, 1.15);
+  });
+
+  const rockCoords = [
+    [115,380], [145,405], [250,335], [285,375], [260,415],
+    [245,515], [280,530], [345,525], [230,555]
+  ];
+  rockCoords.forEach(([x, y]) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    drawDarkRockMound(ctx, cx, cy, 1.1);
+  });
+
+  [[230,900], [320,920], [705,885], [825,405]].forEach(([x, y]) => {
+    const { cx, cy } = mapToCanvas(x, y);
+    drawFishSchool(ctx, cx, cy);
+  });
+
+  const boatPos = mapToCanvas(838, 512);
+  drawVectorSailboat(ctx, boatPos.cx, boatPos.cy, 1.25);
+  const whale1 = mapToCanvas(822, 622), whale2 = mapToCanvas(845, 648);
+  drawVectorWhale(ctx, whale1.cx, whale1.cy, 1.15);
+  drawVectorWhale(ctx, whale2.cx, whale2.cy, 0.72);
+
+  // 7. 矢量地标
+  const lhasaP = mapToCanvas(305, 580);
+  drawVectorPotala(ctx, lhasaP.cx, lhasaP.cy, 1.15);
+
+  const bjP = mapToCanvas(665, 315);
+  drawVectorBeijingGreatWall(ctx, bjP.cx, bjP.cy, 1.05);
+
+  const cdP = mapToCanvas(462, 558);
+  drawVectorPanda(ctx, cdP.cx, cdP.cy, 0.95);
+
+  const cqP = mapToCanvas(525, 588);
+  drawVectorHotpot(ctx, cqP.cx, cqP.cy, 0.95);
+
+  const kkxP = mapToCanvas(305, 422);
+  drawVectorAntelope(ctx, kkxP.cx, kkxP.cy, 0.95);
+
+  const ccP = mapToCanvas(825, 275);
+  drawVectorTruck(ctx, ccP.cx, ccP.cy, 0.92);
+
+  const shP = mapToCanvas(805, 565);
+  drawVectorOrientalPearl(ctx, shP.cx, shP.cy, 1.05);
+
+  const customDrawnIds = new Set(['beijing', 'lhasa', 'chengdu', 'chongqing', 'hohxil', 'changchun', 'shanghai']);
+  NODES.forEach(n => {
+    if (customDrawnIds.has(n.id)) return;
+    const { cx, cy } = mapToCanvas(n.x, n.y);
+    const ox = (n.stickerOffset ? n.stickerOffset[0] : 0) * 3.8;
+    const oy = (n.stickerOffset ? n.stickerOffset[1] : -28) * 3.8;
+    const sx = cx + ox, sy = cy + oy;
+
+    drawStickerBackdrop(ctx, sx, sy, 168, 104);
+    ctx.font = '68px "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.sticker || n.icon, sx, sy + 4);
+  });
+
+  // 8. 顶部标题
+  const titlePos = mapToCanvas(465, 148);
+  ctx.font = '900 105px "Comic Sans MS", "Arial Rounded MT Bold", "PingFang SC", sans-serif';
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 20;
+  ctx.strokeText('DISCOVER ⭐ 山河之旅', titlePos.cx, titlePos.cy);
+  ctx.fillStyle = '#f2e2c4';
+  ctx.fillText('DISCOVER ⭐ 山河之旅', titlePos.cx, titlePos.cy);
+
+  ctx.save();
+  ctx.translate(titlePos.cx + 580, titlePos.cy - 45);
+  ctx.rotate(-0.22);
+  ctx.fillStyle = '#2b2d42';
+  ctx.font = '900 54px sans-serif';
+  ctx.fillText('mini', 0, 0);
+  ctx.restore();
+
+  const chinaTitlePos = mapToCanvas(465, 222);
+  const letters = [
+    { ch: 'C', col: '#52b788', dx: -390 },
+    { ch: 'H', col: '#95d5b2', dx: -195 },
+    { ch: 'I', col: '#f4a261', dx: -20 },
+    { ch: 'N', col: '#48cae4', dx: 155 },
+    { ch: 'A', col: '#9d4edd', dx: 355 }
+  ];
+  ctx.font = '900 245px "Arial Rounded MT Bold", "PingFang SC", sans-serif';
+  letters.forEach(item => {
+    ctx.strokeStyle = '#f2e2c4'; ctx.lineWidth = 42;
+    ctx.strokeText(item.ch, chinaTitlePos.cx + item.dx, chinaTitlePos.cy);
+    ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 18;
+    ctx.strokeText(item.ch, chinaTitlePos.cx + item.dx, chinaTitlePos.cy);
+    ctx.fillStyle = item.col;
+    ctx.fillText(item.ch, chinaTitlePos.cx + item.dx, chinaTitlePos.cy);
+  });
+
+  // 9. 罗盘与南海附图框
+  const comp = mapToCanvas(138, 162);
+  drawOriginalCompass(ctx, comp.cx, comp.cy, 128);
+
+  drawStandardSouthChinaSeaInset(ctx, geoJsonData);
+
+  const mfjPos = mapToCanvas(650, 922);
+  ctx.font = '900 64px "Comic Sans MS", sans-serif';
+  ctx.strokeStyle = '#2b2d42'; ctx.lineWidth = 5;
+  ctx.strokeText('MY FIRST JOURNEY', mfjPos.cx, mfjPos.cy);
+
+  // 10. 折痕与暗角
+  ctx.save();
+  ctx.strokeStyle = 'rgba(60, 40, 20, 0.16)';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(TEX_RES * 0.5, 0); ctx.lineTo(TEX_RES * 0.5, TEX_RES);
+  ctx.moveTo(0, TEX_RES * 0.5); ctx.lineTo(TEX_RES, TEX_RES * 0.5);
+  ctx.stroke();
+
+  const vig = ctx.createRadialGradient(TEX_RES * 0.5, TEX_RES * 0.5, TEX_RES * 0.35, TEX_RES * 0.5, TEX_RES * 0.5, TEX_RES * 0.72);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(40, 22, 8, 0.35)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, TEX_RES, TEX_RES);
+  ctx.restore();
+}
+
+// ==================== 3. 镜头与视图控制 ====================
+let scene, camera, renderer, boardTopMaterial, proceduralBoardTexture;
+const edgeMeshes = {};
+const nodeMeshes = {};
+const reachHaloMeshes = {};
+const targetBeacons = [];
+let secretBeaconMesh = null;
+const interactableObjects = [];
+const playerPawns3D = {};
+const pawnAnimations = [];
+const diceMeshes = [];
+let activeDiceAnims = [];
+let isHopping = false;
+let isPickingRoute = false;
+let currentlyHoveredEdgeKey = null;
+
+let is2DMode = false;
+let allAIAutoRunning = false; // 当全员为 AI 时，默认不自动开始，需用户手动点击启动
+
+const PAWN_RING_OFFSETS = [[-1.35, -1.25], [1.35, -1.25], [-1.35, 1.25], [1.35, 1.25]];
+
+const camState = {
+  theta: 0, phi: 0.78, radius: 78,
+  targetX: 0, targetZ: 2,
+  targetTheta: 0, targetPhi: 0.78, targetRadius: 78,
+  goalTargetX: 0, goalTargetZ: 2
+};
+
+function updateCameraPosition() {
+  camState.theta  += (camState.targetTheta - camState.theta) * 0.16;
+  camState.phi    += (camState.targetPhi - camState.phi) * 0.16;
+  camState.radius += (camState.targetRadius - camState.radius) * 0.16;
+  camState.targetX += (camState.goalTargetX - camState.targetX) * 0.16;
+  camState.targetZ += (camState.goalTargetZ - camState.targetZ) * 0.16;
+
+  const sinPhi = Math.sin(camState.phi), cosPhi = Math.cos(camState.phi);
+  const sinTheta = Math.sin(camState.theta), cosTheta = Math.cos(camState.theta);
+
+  camera.position.x = camState.targetX + camState.radius * sinPhi * sinTheta;
+  camera.position.y = camState.radius * cosPhi;
+  camera.position.z = camState.targetZ + camState.radius * sinPhi * cosTheta;
+  camera.lookAt(camState.targetX, 0, camState.targetZ);
+}
+
+function setCameraView(theta, phi, radius, tx = 0, tz = 2) {
+  camState.targetTheta = theta;
+  camState.targetPhi = phi;
+  camState.targetRadius = radius;
+  camState.goalTargetX = tx;
+  camState.goalTargetZ = tz;
+}
+
+function toggle2D3DMode() {
+  is2DMode = !is2DMode;
+  const btn = document.getElementById('btn-mode-toggle');
+  const hint = document.getElementById('mode-hint-text');
+
+  if (is2DMode) {
+    btn.textContent = '🧊 切换 3D 视图';
+    btn.classList.add('mode-2d');
+    hint.innerHTML = '🖱️ 左键拖拽平移地图 · 滚轮缩放 · 悬停铁路查看颜色';
+    setCameraView(0, 0.001, 90, 0, 1);
+    Object.values(playerPawns3D).forEach(pawn => pawn.scale.set(1.25, 0.18, 1.25));
+    diceMeshes.forEach(d => d.scale.set(1, 0.25, 1));
+    setHud("🗺️ 已切换为 2D 平面视图");
+  } else {
+    btn.textContent = '🗺️ 切换 2D 视图';
+    btn.classList.remove('mode-2d');
+    hint.innerHTML = '🖱️ 左键旋转 · 右键平移 · 滚轮缩放 · 悬停铁路查看颜色';
+    setCameraView(0, 0.78, 78, 0, 2);
+    Object.values(playerPawns3D).forEach(pawn => pawn.scale.set(1, 1, 1));
+    diceMeshes.forEach(d => d.scale.set(1, 1, 1));
+    setHud("🧊 已切换为 3D 沙盘视图");
+  }
+  sync3DBoardState(false);
+}
+
+function resetDefaultView() {
+  if (is2DMode) {
+    setCameraView(0, 0.001, 90, 0, 1);
+  } else {
+    setCameraView(0, 0.78, 78, 0, 2);
+  }
+}
+
+// ==================== 4. 构建 WebGL 场景 ====================
+function initWebGLScene() {
+  if (typeof THREE === 'undefined') {
+    setHud("❌ 3D 引擎加载失败，请检查网络后刷新");
+    return false;
+  }
+
+  const container = document.getElementById('webgl-container');
+  const w = container.clientWidth || (window.innerWidth - 425);
+  const h = container.clientHeight || window.innerHeight;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 1000);
+  updateCameraPosition();
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xfff8e7, 0.65));
+
+  const dirLight = new THREE.DirectionalLight(0xfffaed, 0.65);
+  dirLight.position.set(28, 68, 38);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  const d = 46;
+  dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
+  dirLight.shadow.camera.top = d;  dirLight.shadow.camera.bottom = -d;
+  dirLight.shadow.camera.near = 10; dirLight.shadow.camera.far = 160;
+  dirLight.shadow.bias = -0.0005;
+  scene.add(dirLight);
+
+  const boardCanvas = document.createElement('canvas');
+  boardCanvas.width = TEX_RES;
+  boardCanvas.height = TEX_RES;
+  renderFullBoardCanvas(boardCanvas, null);
+
+  proceduralBoardTexture = new THREE.CanvasTexture(boardCanvas);
+  proceduralBoardTexture.anisotropy = 16;
+  proceduralBoardTexture.needsUpdate = true;
+
+  const woodMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.75, metalness: 0.1 });
+  boardTopMaterial = new THREE.MeshLambertMaterial({ map: proceduralBoardTexture });
+  const boardGeo = new THREE.BoxGeometry(BOARD_SIZE, 2.2, BOARD_SIZE);
+  const boardMesh = new THREE.Mesh(boardGeo, [woodMat, woodMat, boardTopMaterial, woodMat, woodMat, woodMat]);
+  boardMesh.position.y = -1.1;
+  boardMesh.receiveShadow = true;
+  scene.add(boardMesh);
+
+  fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+    .then(res => res.json())
+    .then(geoData => {
+      renderFullBoardCanvas(boardCanvas, geoData);
+      proceduralBoardTexture.needsUpdate = true;
+    })
+    .catch(() => {});
+
+  const frameGeo = new THREE.BoxGeometry(BOARD_SIZE + 2.8, 2.0, BOARD_SIZE + 2.8);
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x3b2313, roughness: 0.85 });
+  const frameMesh = new THREE.Mesh(frameGeo, frameMat);
+  frameMesh.position.y = -1.35;
+  frameMesh.receiveShadow = true;
+  scene.add(frameMesh);
+
+  build3DRailsAndStations();
+  init3DDice();
+  bindCanvasEvents(renderer.domElement, container);
+  return true;
+}
+
+function build3DRailsAndStations() {
+  const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x4a2c11, roughness: 0.9 });
+  const hitBoxMat  = new THREE.MeshBasicMaterial({ visible: false });
+
+  EDGES.forEach(e => {
+    const u = NODES.find(n => n.id === e.u);
+    const v = NODES.find(n => n.id === e.v);
+    const p1 = new THREE.Vector3(u.wx, 0.24, u.wz);
+    const p2 = new THREE.Vector3(v.wx, 0.24, v.wz);
+    const dist = p1.distanceTo(p2);
+    const mid = p1.clone().add(p2).multiplyScalar(0.5);
+
+    const railGeo = new THREE.CylinderGeometry(0.28, 0.28, dist, 12);
+    railGeo.rotateX(Math.PI / 2);
+    const railMat = new THREE.MeshStandardMaterial({
+      color: COLOR_INT[e.color],
+      roughness: 0.30,
+      metalness: 0.12,
+      emissive: 0x000000
+    });
+    const railMesh = new THREE.Mesh(railGeo, railMat);
+    railMesh.position.copy(mid);
+    railMesh.lookAt(p2);
+    railMesh.castShadow = true;
+    railMesh.receiveShadow = true;
+    railMesh.userData.baseColorHex = COLOR_INT[e.color];
+
+    const edgeKey = `${e.u}-${e.v}`;
+
+    if (!e.dashed) {
+      const numSleepers = Math.max(2, Math.floor(dist / 1.05));
+      const sleeperGeo = new THREE.BoxGeometry(0.92, 0.12, 0.28);
+      for (let i = 1; i < numSleepers; i++) {
+        const sl = new THREE.Mesh(sleeperGeo, sleeperMat);
+        sl.position.set(0, -0.1, (i / numSleepers - 0.5) * dist);
+        railMesh.add(sl);
+      }
+    }
+
+    const hitGeo = new THREE.CylinderGeometry(0.95, 0.95, Math.max(0.5, dist - 0.8), 8);
+    hitGeo.rotateX(Math.PI / 2);
+    const hitMesh = new THREE.Mesh(hitGeo, hitBoxMat);
+    hitMesh.position.copy(mid);
+    hitMesh.lookAt(p2);
+    hitMesh.userData = {
+      isEdge: true,
+      edgeKey,
+      uId: u.id,
+      vId: v.id,
+      uName: u.name,
+      vName: v.name,
+      color: e.color,
+      dashed: !!e.dashed
+    };
+    scene.add(hitMesh);
+    interactableObjects.push(hitMesh);
+
+    scene.add(railMesh);
+    edgeMeshes[edgeKey] = railMesh;
+  });
+
+  const htmlLabelsContainer = document.getElementById('labels-container');
+  htmlLabelsContainer.innerHTML = '';
+
+  NODES.forEach(n => {
+    const radius = n.isStart ? 1.15 : 0.78;
+    const height = n.isStart ? 0.68 : 0.48;
+    const stGeo = new THREE.CylinderGeometry(radius, radius * 1.18, height, 24);
+    const stMat = new THREE.MeshStandardMaterial({
+      color: n.isStart ? 0x9b2226 : 0x2b211b,
+      roughness: 0.35,
+      metalness: 0.2
+    });
+    const stMesh = new THREE.Mesh(stGeo, stMat);
+    stMesh.position.set(n.wx, height / 2, n.wz);
+    stMesh.castShadow = true;
+    stMesh.receiveShadow = true;
+    stMesh.userData = { nodeId: n.id };
+    scene.add(stMesh);
+    nodeMeshes[n.id] = stMesh;
+    interactableObjects.push(stMesh);
+
+    const capGeo = new THREE.CylinderGeometry(radius * 0.68, radius * 0.68, 0.1, 20);
+    const capMat = new THREE.MeshBasicMaterial({ color: n.isStart ? 0xe9c46a : 0xf4ece1 });
+    const capMesh = new THREE.Mesh(capGeo, capMat);
+    capMesh.position.y = height / 2 + 0.05;
+    stMesh.add(capMesh);
+
+    const ringGeo = new THREE.RingGeometry(1.05, 1.65, 32);
+    ringGeo.rotateX(-Math.PI / 2);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0x2d6a4f, side: THREE.DoubleSide, transparent: true, opacity: 0.90 });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.set(n.wx, 0.26, n.wz);
+    ringMesh.visible = false;
+    scene.add(ringMesh);
+    reachHaloMeshes[n.id] = ringMesh;
+
+    const lbl = document.createElement('div');
+    lbl.id = `lbl-${n.id}`;
+    lbl.className = 'city-label-3d' + (n.isStart ? ' is-start' : '');
+    lbl.textContent = `${n.name}${n.score ? '·' + n.score : '★'}`;
+    lbl.onclick = () => onNodeClick(n.id);
+    lbl.onmouseenter = () => onNodeHover(n.id, true);
+    lbl.onmouseleave = () => onNodeHover(n.id, false);
+    htmlLabelsContainer.appendChild(lbl);
+  });
+}
+
+function applyEdgeSubtleHighlight(mesh, active) {
+  if (!mesh) return;
+  if (active) {
+    mesh.material.emissive.setHex(mesh.userData.baseColorHex || 0x000000);
+    mesh.material.emissiveIntensity = 0.24;
+    mesh.scale.set(1.28, 1, 1.28);
+  } else {
+    mesh.material.emissive.setHex(0x000000);
+    mesh.material.emissiveIntensity = 0;
+    mesh.scale.set(1, 1, 1);
+  }
+}
+
+function create3DMeeplePawn(colorHex) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: colorHex,
+    roughness: 0.28,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 1.0
+  });
+  group.userData.mat = mat;
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.70, 0.88, 0.4, 24), mat);
+  base.position.y = 0.2; base.castShadow = true; group.add(base);
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.66, 1.4, 24), mat);
+  body.position.y = 1.08; body.castShadow = true; group.add(body);
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.11, 12, 24), mat);
+  collar.rotation.x = Math.PI / 2; collar.position.y = 1.72; collar.castShadow = true; group.add(collar);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 24), mat);
+  head.position.y = 2.28; head.castShadow = true; group.add(head);
+
+  scene.add(group);
+  return group;
+}
+
+function setPawnsGhostMode(uId, vId) {
+  players.forEach(p => {
+    const pawn = playerPawns3D[p.id];
+    if (!pawn || !pawn.userData.mat) return;
+    if (uId && vId && (p.node === uId || p.node === vId)) {
+      pawn.userData.mat.opacity = 0.28;
+    } else {
+      pawn.userData.mat.opacity = 1.0;
+    }
+  });
+}
+
+const diceFaceOrder = ['red', 'yellow', 'green', 'teal', 'purple', 'GO'];
+function createDieFaceTexture(type) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f5ebe0';
+  ctx.fillRect(0, 0, 256, 256);
+  ctx.strokeStyle = '#8c6239';
+  ctx.lineWidth = 14;
+  ctx.strokeRect(7, 7, 242, 242);
+
+  if (type === 'GO') {
+    const grad = ctx.createLinearGradient(30, 30, 226, 226);
+    grad.addColorStop(0, '#e63946');
+    grad.addColorStop(0.25, '#f4a261');
+    grad.addColorStop(0.5, '#6a994e');
+    grad.addColorStop(0.75, '#2a9d8f');
+    grad.addColorStop(1, '#8338ec');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(128, 128, 82, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 68px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GO!', 128, 132);
+  } else {
+    ctx.fillStyle = COLOR_HEX[type];
+    ctx.beginPath(); ctx.arc(128, 128, 76, 0, Math.PI * 2); ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function init3DDice() {
+  const dieMaterials = diceFaceOrder.map(t => new THREE.MeshLambertMaterial({ map: createDieFaceTexture(t) }));
+  const geo = new THREE.BoxGeometry(2.6, 2.6, 2.6);
+  for (let i = 0; i < 2; i++) {
+    const mesh = new THREE.Mesh(geo, dieMaterials);
+    mesh.castShadow = true;
+    mesh.position.set(-4 + i * 5.5, 1.3, -12);
+    scene.add(mesh);
+    diceMeshes.push(mesh);
+  }
+}
+
+const FACE_UP_ROTATIONS = {
+  red:    { x: 0, z: Math.PI / 2 },
+  yellow: { x: 0, z: -Math.PI / 2 },
+  green:  { x: 0, z: 0 },
+  teal:   { x: Math.PI, z: 0 },
+  purple: { x: -Math.PI / 2, z: 0 },
+  GO:     { x: Math.PI / 2, z: 0 }
+};
+
+function animate3DDiceThrow(r1, r2, onComplete) {
+  const results = [r1, r2];
+  activeDiceAnims = diceMeshes.map((mesh, idx) => {
+    const targetRot = FACE_UP_ROTATIONS[results[idx]];
+    return {
+      mesh,
+      startTime: performance.now(),
+      duration: 720,
+      startX: -5 + idx * 6,
+      startZ: -11 + (Math.random() - 0.5) * 2,
+      targetRotX: targetRot.x + Math.PI * 4,
+      targetRotZ: targetRot.z + Math.PI * 4,
+      targetRotY: Math.random() * Math.PI * 2
+    };
+  });
+  setTimeout(onComplete, 750);
+}
+
+// ==================== 5. 鼠标交互与拾取 ====================
+function bindCanvasEvents(domElement, container) {
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const edgeTipEl = document.getElementById('edge-hover-tooltip');
+  const edgeTipDot = document.getElementById('edge-tip-dot');
+  const edgeTipText = document.getElementById('edge-tip-text');
+
+  let isPointerDown = false;
+  let pointerButton = 0;
+  let downPos = { x: 0, y: 0 };
+  let lastPos = { x: 0, y: 0 };
+
+  domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+  domElement.addEventListener('pointerdown', e => {
+    isPointerDown = true;
+    pointerButton = e.button;
+    downPos = { x: e.clientX, y: e.clientY };
+    lastPos = { x: e.clientX, y: e.clientY };
+    edgeTipEl.style.display = 'none';
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (isPointerDown) {
+      const dx = e.clientX - lastPos.x;
+      const dy = e.clientY - lastPos.y;
+      lastPos = { x: e.clientX, y: e.clientY };
+
+      if (is2DMode || pointerButton === 2 || e.shiftKey) {
+        const panSpeed = camState.radius * 0.0012;
+        const cosT = Math.cos(camState.theta), sinT = Math.sin(camState.theta);
+        camState.goalTargetX -= (dx * cosT + dy * sinT) * panSpeed;
+        camState.goalTargetZ -= (-dx * sinT + dy * cosT) * panSpeed;
+        camState.goalTargetX = Math.max(-28, Math.min(28, camState.goalTargetX));
+        camState.goalTargetZ = Math.max(-28, Math.min(28, camState.goalTargetZ));
+      } else {
+        camState.targetTheta -= dx * 0.007;
+        camState.targetPhi = Math.max(0.05, Math.min(1.42, camState.targetPhi - dy * 0.006));
+      }
+      return;
+    }
+
+    if (isHopping || isPickingRoute) {
+      edgeTipEl.style.display = 'none';
+      return;
+    }
+
+    const rect = domElement.getBoundingClientRect();
+    if (rect.width === 0) return;
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(interactableObjects, false);
+
+    const nodeHit = hits.find(h => h.object.userData && h.object.userData.nodeId);
+    const edgeHit = hits.find(h => h.object.userData && h.object.userData.isEdge);
+
+    if (nodeHit) {
+      const nid = nodeHit.object.userData.nodeId;
+      clearSingleEdgeHover();
+      edgeTipEl.style.display = 'none';
+      domElement.style.cursor = (reachablePaths[nid] && reachablePaths[nid].length > 0) ? 'pointer' : 'grab';
+      onNodeHover(nid, true);
+    } else if (edgeHit) {
+      onNodeHover(null, false);
+      const ed = edgeHit.object.userData;
+      highlightSingleEdgeHover(ed.edgeKey, ed.uId, ed.vId);
+
+      const colHex = COLOR_HEX[ed.color];
+      const colName = COLOR_CN[ed.color];
+      edgeTipDot.style.background = colHex;
+      edgeTipEl.style.borderColor = colHex;
+      edgeTipText.innerHTML = `${ed.uName} ⟷ ${ed.vName} <span style="color:${colHex};margin-left:4px;">【${colName}色线路 · 需${colName}票】</span>`;
+      edgeTipEl.style.left = `${e.clientX}px`;
+      edgeTipEl.style.top  = `${e.clientY}px`;
+      edgeTipEl.style.display = 'flex';
+
+      const activeP = players[currentPlayerIdx];
+      const otherNodeId = (activeP.node === ed.uId) ? ed.vId : ((activeP.node === ed.vId) ? ed.uId : null);
+      domElement.style.cursor = (otherNodeId && reachablePaths[otherNodeId]) ? 'pointer' : 'help';
+    } else {
+      clearSingleEdgeHover();
+      edgeTipEl.style.display = 'none';
+      domElement.style.cursor = 'grab';
+      onNodeHover(null, false);
+    }
+  });
+
+  window.addEventListener('pointerup', e => {
+    if (!isPointerDown) return;
+    isPointerDown = false;
+    if (isHopping || isPickingRoute) return;
+
+    const moveDist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+    if (moveDist > 6 || pointerButton !== 0) return;
+
+    const rect = domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(interactableObjects, false);
+    const nodeHit = hits.find(h => h.object.userData && h.object.userData.nodeId);
+    const edgeHit = hits.find(h => h.object.userData && h.object.userData.isEdge);
+
+    if (nodeHit) {
+      onNodeClick(nodeHit.object.userData.nodeId);
+    } else if (edgeHit) {
+      const ed = edgeHit.object.userData;
+      const activeP = players[currentPlayerIdx];
+      const neighborId = (activeP.node === ed.uId) ? ed.vId : ((activeP.node === ed.vId) ? ed.uId : null);
+      if (neighborId && reachablePaths[neighborId]) {
+        onNodeClick(neighborId);
+      }
+    }
+  });
+
+  domElement.addEventListener('wheel', e => {
+    e.preventDefault();
+    camState.targetRadius = Math.max(20, Math.min(125, camState.targetRadius + e.deltaY * 0.05));
+  }, { passive: false });
+
+  window.addEventListener('resize', () => {
+    const w = container.clientWidth || (window.innerWidth - 425);
+    const h = container.clientHeight || window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
+
+function highlightSingleEdgeHover(edgeKey, uId, vId) {
+  if (currentlyHoveredEdgeKey === edgeKey) return;
+  clearSingleEdgeHover();
+  currentlyHoveredEdgeKey = edgeKey;
+  const m = edgeMeshes[edgeKey];
+  applyEdgeSubtleHighlight(m, true);
+  setPawnsGhostMode(uId, vId);
+}
+
+function clearSingleEdgeHover() {
+  if (!currentlyHoveredEdgeKey) return;
+  const m = edgeMeshes[currentlyHoveredEdgeKey];
+  if (m && hoveredPathNodes.length === 0) {
+    applyEdgeSubtleHighlight(m, false);
+  }
+  currentlyHoveredEdgeKey = null;
+  setPawnsGhostMode(null, null);
+}
+
+function focusCity(nodeId) {
+  const n = NODES.find(item => item.id === nodeId);
+  if (!n) return;
+  if (is2DMode) {
+    setCameraView(0, 0.001, 55, n.wx, n.wz);
+  } else {
+    setCameraView(0, 0.58, 40, n.wx, n.wz);
+  }
+}
+
+function focusCurrentPlayer() {
+  focusCity(players[currentPlayerIdx].node);
+}
+
+function focusSecretCity() {
+  const humanP = players.find(p => !p.isAI) || players[0];
+  if (humanP && humanP.secret) {
+    focusCity(humanP.secret.id);
+    setHud(`🏠 已聚焦秘密回家城市：【${humanP.secret.icon}${humanP.secret.name}】`);
+  }
+}
+
+// ==================== 6. 游戏核心逻辑 ====================
+let deck = [];
+let publicTargets = [];
+let players = [
+  { id: 0, name: "玩家 1", customName: false, color: "#c1121f", node: "beijing", score: 0, tickets: [], secret: null, isAI: false },
+  { id: 1, name: "电脑 AI-2", customName: false, color: "#1d3557", node: "beijing", score: 0, tickets: [], secret: null, isAI: true }
+];
+let currentPlayerIdx = 0;
+let pendingWilds = 0;
+let hasRolled = false;
+let reachablePaths = {};
+let hoveredPathNodes = [];
+
+function isEveryPlayerAI() {
+  return players.every(p => p.isAI);
+}
+
+function initGame() {
+  if (!initWebGLScene()) return;
+
+  deck = NODES.filter(n => !n.isStart).sort(() => Math.random() - 0.5);
+  players.forEach(p => {
+    p.secret = deck.pop();
+    playerPawns3D[p.id] = create3DMeeplePawn(p.color);
+  });
+  for (let i = 0; i < 3; i++) publicTargets.push(deck.pop());
+
+  sync3DBoardState(false);
+  updateSidebar();
+  setHud("🎲 欢迎来到《山河之旅》，请点击右侧【投掷车票骰子】开始旅程");
+  log("🎉 游戏开始！所有玩家从【北京】出发，先凑齐 10 分并返回秘密城市的玩家获胜。");
+  requestAnimationFrame(animate);
+}
+
+function addPlayer() {
+  if (players.length >= 4) return alert("最多支持 4 人同局游戏！");
+  const palette = ["#c1121f", "#1d3557", "#2d6a4f", "#d97706"];
+  const idx = players.length;
+  const newP = {
+    id: idx, name: `电脑 AI-${idx + 1}`, customName: false, color: palette[idx],
+    node: "beijing", score: 0, tickets: [], secret: deck.pop(), isAI: true
+  };
+  players.push(newP);
+  const pawn = create3DMeeplePawn(newP.color);
+  if (is2DMode) pawn.scale.set(1.25, 0.18, 1.25);
+  playerPawns3D[newP.id] = pawn;
+  sync3DBoardState(false);
+  updateSidebar();
+}
+
+// 点击玩家名称手动修改昵称
+function editPlayerName(idx) {
+  const p = players[idx];
+  const newName = prompt("请输入新的玩家名称：", p.name);
+  if (newName !== null) {
+    const trimmed = newName.trim();
+    if (trimmed.length > 0) {
+      p.name = trimmed;
+      p.customName = true;
+      updateSidebar();
+    }
+  }
+}
+
+// 切换真人与 AI（若切换后全员均为 AI，绝不自动开跑，等待手动点击启动）
+function toggleAI(idx) {
+  if (isHopping || isPickingRoute) return;
+  const p = players[idx];
+  p.isAI = !p.isAI;
+  if (!p.customName) {
+    p.name = p.isAI ? `电脑 AI-${idx + 1}` : `玩家 ${idx + 1}`;
+  }
+
+  if (isEveryPlayerAI()) {
+    allAIAutoRunning = false;
+    setHud("⏸ 当前全部玩家均为 AI，已暂停自动运行。请点击右侧【▶️ 开始 AI 对局】或切回真人");
+  }
+
+  sync3DBoardState(false);
+  updateSidebar();
+
+  // 只有在不全是 AI（或者已手动允许全 AI 托管）的情况下才自动触发当前回合 AI
+  if (idx === currentPlayerIdx && p.isAI && !hasRolled) {
+    if (!isEveryPlayerAI() || allAIAutoRunning) {
+      rollDice();
+    }
+  }
+}
+
+// 手动控制全员 AI 对局的启停
+function toggleAllAIAutoRun() {
+  if (!isEveryPlayerAI()) return;
+  allAIAutoRunning = !allAIAutoRunning;
+  updateSidebar();
+  if (allAIAutoRunning) {
+    setHud("▶️ 全 AI 对局已启动，再次点击按钮可随时暂停");
+    if (!hasRolled && !isHopping) {
+      rollDice();
+    }
+  } else {
+    setHud("⏸ 已暂停全 AI 自动对局");
+  }
+}
+
+function computeReachable(startNode, tickets) {
+  const result = {};
+  const seenSignatures = new Set();
+  const maxDepth = Math.min(tickets.length, 6);
+
+  const queue = [{ node: startNode, remaining: [...tickets], used: [], path: [startNode] }];
+
+  while (queue.length > 0) {
+    const { node, remaining, used, path } = queue.shift();
+
+    if (node !== startNode) {
+      const sig = path.join('>') + '|' + used.join(',');
+      if (!seenSignatures.has(sig)) {
+        seenSignatures.add(sig);
+        if (!result[node]) result[node] = [];
+
+        const hitTargets = path.slice(1).map(nid => publicTargets.find(t => t.id === nid)).filter(Boolean);
+        const bonusScore = hitTargets.reduce((sum, t) => sum + t.score, 0);
+
+        result[node].push({
+          tickets: used,
+          pathNodes: path,
+          bonusScore,
+          bonusCities: hitTargets.map(t => t.name)
+        });
+      }
+    }
+
+    if (used.length >= maxDepth) continue;
+
+    EDGES.forEach(e => {
+      const next = e.u === node ? e.v : (e.v === node ? e.u : null);
+      if (!next || path.includes(next)) return;
+
+      const idx = remaining.indexOf(e.color);
+      if (idx !== -1) {
+        const nextRem = [...remaining];
+        nextRem.splice(idx, 1);
+        queue.push({
+          node: next,
+          remaining: nextRem,
+          used: [...used, e.color],
+          path: [...path, next]
+        });
+      }
+    });
+  }
+
+  Object.keys(result).forEach(nid => {
+    result[nid].sort((a, b) => {
+      if (a.tickets.length !== b.tickets.length) return a.tickets.length - b.tickets.length;
+      return b.bonusScore - a.bonusScore;
+    });
+    if (result[nid].length > 8) result[nid] = result[nid].slice(0, 8);
+  });
+
+  return result;
+}
+
+function getGraphDistance(startId, targetId) {
+  if (startId === targetId) return 0;
+  const q = [[startId, 0]];
+  const vis = new Set([startId]);
+  while (q.length > 0) {
+    const [curr, d] = q.shift();
+    for (const e of EDGES) {
+      const nxt = e.u === curr ? e.v : (e.v === curr ? e.u : null);
+      if (nxt && !vis.has(nxt)) {
+        if (nxt === targetId) return d + 1;
+        vis.add(nxt);
+        q.push([nxt, d + 1]);
+      }
+    }
+  }
+  return 999;
+}
+
+function rollDice() {
+  if (hasRolled || isHopping || isPickingRoute) return;
+  hasRolled = true;
+  document.getElementById('btn-roll').disabled = true;
+
+  const faces = ['red', 'yellow', 'green', 'teal', 'purple', 'GO'];
+  const r1 = faces[Math.floor(Math.random() * 6)];
+  const r2 = faces[Math.floor(Math.random() * 6)];
+
+  setHud("🎲 车票骰子投掷中...");
+  animate3DDiceThrow(r1, r2, () => {
+    const p = players[currentPlayerIdx];
+    const t1 = r1 === 'GO' ? '🌈GO!' : COLOR_CN[r1] + '票';
+    const t2 = r2 === 'GO' ? '🌈GO!' : COLOR_CN[r2] + '票';
+    document.getElementById('dice-result-badge').textContent = `本轮掷出: ${t1} + ${t2}`;
+    log(`🎲 <b>${p.name}</b> 掷出了 [${t1}] + [${t2}]`);
+
+    [r1, r2].forEach(r => {
+      if (r === 'GO') pendingWilds++;
+      else p.tickets.push(r);
+    });
+
+    if (pendingWilds > 0) {
+      if (p.isAI) {
+        while (pendingWilds > 0) {
+          const adjColors = EDGES.filter(e => e.u === p.node || e.v === p.node).map(e => e.color);
+          const pick = adjColors[Math.floor(Math.random() * adjColors.length)] || ALL_COLORS[0];
+          p.tickets.push(pick);
+          pendingWilds--;
+          log(`🤖 <b>${p.name}</b> 将 GO! 兑换为【${COLOR_CN[pick]}票】`);
+        }
+        enterMovePhase();
+      } else {
+        document.getElementById('wild-modal').style.display = 'block';
+        setHud(`🌈 投出了 ${pendingWilds} 个 GO! 请在右侧面板选择要兑换的车票颜色`);
+      }
+    } else {
+      enterMovePhase();
+    }
+    updateSidebar();
+  });
+}
+
+function pickWild(color) {
+  if (pendingWilds <= 0) return;
+  const p = players[currentPlayerIdx];
+  p.tickets.push(color);
+  pendingWilds--;
+  log(`✨ <b>${p.name}</b> 兑换了【${COLOR_CN[color]}票】`);
+  if (pendingWilds === 0) {
+    document.getElementById('wild-modal').style.display = 'none';
+    enterMovePhase();
+  }
+  updateSidebar();
+}
+
+function enterMovePhase() {
+  const p = players[currentPlayerIdx];
+  reachablePaths = computeReachable(p.node, p.tickets);
+  sync3DBoardState(false);
+  updateSidebar();
+
+  if (p.isAI) {
+    setHud(`🤖 ${p.name} 正在规划路线...`);
+    setTimeout(aiExecuteMove, 700);
+  } else {
+    const btnEnd = document.getElementById('btn-end');
+    btnEnd.disabled = false;
+    const count = Object.keys(reachablePaths).length;
+    if (count === 0) {
+      btnEnd.classList.add('must-click');
+      setHud("⚠️ 当前车票无法前往相邻城市，请点击右侧【结束回合】");
+    } else {
+      btnEnd.classList.remove('must-click');
+      setHud(`✅ 地图上有 ${count} 座高亮城市可达，点击目标城市即可出发`);
+    }
+  }
+}
+
+let pendingTargetNodeId = null;
+
+function openRoutePicker(targetNodeId, routes) {
+  isPickingRoute = true;
+  pendingTargetNodeId = targetNodeId;
+  document.getElementById('edge-hover-tooltip').style.display = 'none';
+  const targetCity = NODES.find(n => n.id === targetNodeId);
+
+  document.getElementById('rp-title').innerHTML = `🔀 前往【${targetCity.icon}${targetCity.name}】共有 ${routes.length} 条可行路线，请挑选：`;
+  const listEl = document.getElementById('rp-options-list');
+
+  listEl.innerHTML = routes.map((r, idx) => {
+    let chainHtml = '';
+    for (let i = 0; i < r.pathNodes.length; i++) {
+      const nid = r.pathNodes[i];
+      const cObj = NODES.find(n => n.id === nid);
+      const isPubTarget = i > 0 && publicTargets.some(t => t.id === nid);
+      chainHtml += `<span class="ro-city-node ${isPubTarget ? 'hit-target' : ''}">${cObj.name}${isPubTarget ? '🎯' : ''}</span>`;
+      if (i < r.tickets.length) {
+        const col = r.tickets[i];
+        chainHtml += `<span class="ro-step-arrow" style="background:${COLOR_HEX[col]}">${COLOR_CN[col]}票 ➔</span>`;
+      }
+    }
+
+    const bonusHtml = r.bonusScore > 0
+      ? `<span class="ro-bonus">🎯 途经目标 [${r.bonusCities.join('、')}] 顺路拿 +${r.bonusScore} 分！</span>`
+      : `<span style="font-size:11px;color:#5c3a21;">共消耗 ${r.tickets.length} 张车票</span>`;
+
+    return `
+      <div class="route-option-item"
+           onmouseenter="previewRouteOption(${idx})"
+           onclick="confirmRouteOption(${idx})">
+        <div class="ro-top">
+          <span class="ro-badge">方案 ${idx + 1}（${r.tickets.length} 跳）</span>
+          ${bonusHtml}
+        </div>
+        <div class="ro-path-chain">${chainHtml}</div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('route-picker-overlay').style.display = 'flex';
+  previewRouteOption(0);
+}
+
+function previewRouteOption(routeIdx) {
+  if (!pendingTargetNodeId || !reachablePaths[pendingTargetNodeId]) return;
+  const route = reachablePaths[pendingTargetNodeId][routeIdx];
+  if (!route) return;
+  hoveredPathNodes = [...route.pathNodes];
+  highlightHoveredEdges3D();
+}
+
+function confirmRouteOption(routeIdx) {
+  const routes = reachablePaths[pendingTargetNodeId];
+  if (!routes || !routes[routeIdx]) return;
+  const chosenRoute = routes[routeIdx];
+  closeRoutePicker();
+  startStepByStepHop(chosenRoute);
+}
+
+function closeRoutePicker() {
+  isPickingRoute = false;
+  pendingTargetNodeId = null;
+  document.getElementById('route-picker-overlay').style.display = 'none';
+  hoveredPathNodes = [];
+  highlightHoveredEdges3D();
+}
+
+function executeNodeMove(routeObject, onAllStepsDone) {
+  if (!routeObject || isHopping) return;
+
+  isHopping = true;
+  clearSingleEdgeHover();
+  document.getElementById('edge-hover-tooltip').style.display = 'none';
+  document.getElementById('btn-end').disabled = true;
+
+  const p = players[currentPlayerIdx];
+  hoveredPathNodes = [...routeObject.pathNodes];
+  highlightHoveredEdges3D();
+
+  Object.values(reachHaloMeshes).forEach(r => r.visible = false);
+
+  const steps = routeObject.pathNodes.slice(1);
+  const ticketsToUse = [...routeObject.tickets];
+  let stepIdx = 0;
+
+  function doNextSingleHop() {
+    if (stepIdx >= steps.length) {
+      isHopping = false;
+      hoveredPathNodes = [];
+      highlightHoveredEdges3D();
+      reachablePaths = computeReachable(p.node, p.tickets);
+      sync3DBoardState(false);
+      updateSidebar();
+      if (onAllStepsDone) onAllStepsDone(false);
+      return;
+    }
+
+    const nextCityId = steps[stepIdx];
+    const usedColor = ticketsToUse[stepIdx];
+    stepIdx++;
+
+    const tIdx = p.tickets.indexOf(usedColor);
+    if (tIdx !== -1) p.tickets.splice(tIdx, 1);
+
+    const fromCity = NODES.find(n => n.id === p.node);
+    const toCity   = NODES.find(n => n.id === nextCityId);
+    p.node = nextCityId;
+
+    setHud(`🚂 正在行进 (${stepIdx}/${steps.length})：${fromCity.name} ➔ ${toCity.name}`);
+    log(`🚂 <b>${p.name}</b> [第${stepIdx}跳] 消耗 [${COLOR_CN[usedColor]}票]：${fromCity.name} ➔ <b>${toCity.icon}${toCity.name}</b>`);
+
+    const [ox, oz] = PAWN_RING_OFFSETS[currentPlayerIdx] || [0, 0];
+    const pawn = playerPawns3D[p.id];
+    const targetPos = new THREE.Vector3(toCity.wx + ox, 0, toCity.wz + oz);
+
+    pawnAnimations.push({
+      mesh: pawn,
+      startPos: pawn.position.clone(),
+      endPos: targetPos,
+      startTime: performance.now(),
+      duration: 440
+    });
+
+    updateSidebar();
+
+    setTimeout(() => {
+      const stMesh = nodeMeshes[nextCityId];
+      if (stMesh) {
+        const origHex = stMesh.material.color.getHex();
+        stMesh.material.color.setHex(0xd97706);
+        setTimeout(() => stMesh.material.color.setHex(origHex), 220);
+      }
+
+      const pubIdx = publicTargets.findIndex(t => t.id === nextCityId);
+      if (pubIdx !== -1) {
+        const card = publicTargets[pubIdx];
+        p.score += card.score;
+        log(`🏆 <span style="color:#9b2226;font-weight:900;">${p.name} 抵达目标【${card.name}】，获得 +${card.score} 分！(当前总分 ${p.score})</span>`);
+        if (deck.length > 0) publicTargets[pubIdx] = deck.pop();
+        else publicTargets.splice(pubIdx, 1);
+        sync3DBoardState(false);
+        updateSidebar();
+      }
+
+      if (p.score >= 10 && p.node === p.secret.id) {
+        isHopping = false;
+        allAIAutoRunning = false;
+        hoveredPathNodes = [];
+        highlightHoveredEdges3D();
+        sync3DBoardState(false);
+        updateSidebar();
+        setTimeout(() => {
+          alert(`🎊 恭喜获胜！\n\n【${p.name}】攒够 ${p.score} 分并成功返回秘密城市【${p.secret.name}】，赢得最终胜利！`);
+          location.reload();
+        }, 350);
+        if (onAllStepsDone) onAllStepsDone(true);
+        return;
+      }
+
+      setTimeout(doNextSingleHop, 110);
+    }, 450);
+  }
+
+  doNextSingleHop();
+}
+
+function startStepByStepHop(chosenRoute) {
+  executeNodeMove(chosenRoute, (gameOver) => {
+    if (gameOver) return;
+    const btnEnd = document.getElementById('btn-end');
+    btnEnd.disabled = false;
+    const count = Object.keys(reachablePaths).length;
+    if (count === 0) {
+      btnEnd.classList.add('must-click');
+      setHud("🏁 移动完毕，已无可用车票，请点击右侧【结束回合】");
+    } else {
+      setHud(`🚂 列车到站！还可继续前往其余 ${count} 座高亮城市，或点击【结束回合】`);
+    }
+  });
+}
+
+function onNodeClick(nodeId) {
+  const p = players[currentPlayerIdx];
+  if (p.isAI || !hasRolled || pendingWilds > 0 || isHopping || isPickingRoute) return;
+  const routes = reachablePaths[nodeId];
+  if (!routes || routes.length === 0) return;
+
+  if (routes.length === 1) {
+    startStepByStepHop(routes[0]);
+  } else {
+    openRoutePicker(nodeId, routes);
+  }
+}
+
+function onNodeHover(nodeId, isEnter) {
+  if (isHopping || isPickingRoute) return;
+  const p = players[currentPlayerIdx];
+  const routes = nodeId ? reachablePaths[nodeId] : null;
+  if (p.isAI || !hasRolled || !routes || routes.length === 0) {
+    if (hoveredPathNodes.length > 0) { hoveredPathNodes = []; highlightHoveredEdges3D(); }
+    return;
+  }
+  if (isEnter) {
+    const primaryRoute = routes[0];
+    hoveredPathNodes = primaryRoute.pathNodes;
+    const target = NODES.find(n => n.id === nodeId);
+    const hopNames = primaryRoute.pathNodes.map(id => NODES.find(n => n.id === id).name).join(' ➔ ');
+    if (routes.length > 1) {
+      setHud(`🔀 前往【${target.name}】共有 ${routes.length} 条可选路线，点击车站可选择方案（预览：${hopNames}）`);
+    } else {
+      setHud(`🔍 路线预览 (${primaryRoute.tickets.length}跳)：${hopNames} | 消耗 [${primaryRoute.tickets.map(c => COLOR_CN[c]+'票').join('+')}]`);
+    }
+  } else {
+    hoveredPathNodes = [];
+  }
+  highlightHoveredEdges3D();
+}
+
+function highlightHoveredEdges3D() {
+  Object.entries(edgeMeshes).forEach(([k, m]) => {
+    if (k === currentlyHoveredEdgeKey) return;
+    applyEdgeSubtleHighlight(m, false);
+  });
+  for (let i = 0; i < hoveredPathNodes.length - 1; i++) {
+    const u = hoveredPathNodes[i], v = hoveredPathNodes[i + 1];
+    const m = edgeMeshes[`${u}-${v}`] || edgeMeshes[`${v}-${u}`];
+    applyEdgeSubtleHighlight(m, true);
+  }
+}
+
+function aiExecuteMove() {
+  const p = players[currentPlayerIdx];
+  const reachNodes = Object.keys(reachablePaths);
+
+  if (reachNodes.length > 0) {
+    const goals = p.score >= 10 ? [p.secret.id] : publicTargets.map(t => t.id);
+
+    let bestRoute = null;
+    reachNodes.forEach(nid => {
+      reachablePaths[nid].forEach(r => {
+        if (goals.includes(nid) || r.bonusScore > 0) {
+          if (!bestRoute || r.bonusScore > bestRoute.bonusScore || (r.bonusScore === bestRoute.bonusScore && r.tickets.length < bestRoute.tickets.length)) {
+            bestRoute = r;
+          }
+        }
+      });
+    });
+
+    if (bestRoute) {
+      executeNodeMove(bestRoute, (over) => {
+        if (!over) setTimeout(aiExecuteMove, 450);
+      });
+      return;
+    }
+
+    let bestNode = null;
+    let bestDist = Math.min(...goals.map(g => getGraphDistance(p.node, g)));
+    reachNodes.forEach(nid => {
+      const d = Math.min(...goals.map(g => getGraphDistance(nid, g)));
+      if (d < bestDist) { bestDist = d; bestNode = nid; }
+    });
+
+    if (bestNode && reachablePaths[bestNode] && reachablePaths[bestNode][0]) {
+      executeNodeMove(reachablePaths[bestNode][0], (over) => {
+        if (!over) setTimeout(endTurn, 500);
+      });
+      return;
+    }
+  }
+  setTimeout(endTurn, 550);
+}
+
+function endTurn() {
+  if (isHopping || isPickingRoute) return;
+  hasRolled = false;
+  reachablePaths = {};
+  hoveredPathNodes = [];
+  highlightHoveredEdges3D();
+
+  const btnEnd = document.getElementById('btn-end');
+  btnEnd.classList.remove('must-click');
+  btnEnd.disabled = true;
+
+  currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
+  sync3DBoardState(false);
+  updateSidebar();
+
+  const nextP = players[currentPlayerIdx];
+  if (nextP.isAI) {
+    document.getElementById('btn-roll').disabled = true;
+    // 若全员均为 AI 且未开启自动对局，则停在当前回合等待玩家点击启动
+    if (isEveryPlayerAI() && !allAIAutoRunning) {
+      setHud(`⏸ 轮到【${nextP.name}】，全 AI 模式已暂停，点击右侧【▶️ 开始 AI 对局】继续`);
+      return;
+    }
+    setTimeout(rollDice, 500);
+  } else {
+    document.getElementById('btn-roll').disabled = false;
+    setHud(`🎲 轮到【${nextP.name}】行动，请点击右侧【投掷车票骰子】`);
+  }
+}
+
+function sync3DBoardState(animateMove = false) {
+  const activeP = players[currentPlayerIdx];
+  const isHumanTurn = !activeP.isAI;
+  const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+  const secretId = humanViewer && humanViewer.secret ? humanViewer.secret.id : null;
+
+  NODES.forEach(n => {
+    const isTarget = publicTargets.some(t => t.id === n.id);
+    const routes = reachablePaths[n.id];
+    const isReach = isHumanTurn && !isHopping && routes && routes.length > 0;
+    const isSecret = (n.id === secretId);
+
+    if (reachHaloMeshes[n.id]) reachHaloMeshes[n.id].visible = isReach;
+
+    const lbl = document.getElementById(`lbl-${n.id}`);
+    if (lbl) {
+      lbl.className = 'city-label-3d'
+        + (n.isStart ? ' is-start' : '')
+        + (isTarget ? ' is-target' : '')
+        + (isSecret ? ' is-secret' : '')
+        + (isReach ? ' is-reach' : '');
+
+      let baseText = isSecret
+        ? `🏠${n.name} (秘密终点)`
+        : `${n.name}${n.score ? '·' + n.score : '★'}`;
+
+      if (isReach && routes.length > 1) {
+        lbl.innerHTML = `${baseText}<span class="route-count-pill">⚡${routes.length}条</span>`;
+      } else {
+        lbl.textContent = baseText;
+      }
+    }
+  });
+
+  targetBeacons.forEach(b => scene.remove(b));
+  targetBeacons.length = 0;
+  if (!is2DMode) {
+    publicTargets.forEach(t => {
+      const coneGeo = new THREE.OctahedronGeometry(0.90, 0);
+      const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0x92400e, emissiveIntensity: 0.35, roughness: 0.25, metalness: 0.5 });
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+      cone.position.set(t.wx, 3.6, t.wz);
+      cone.castShadow = true;
+      scene.add(cone);
+      targetBeacons.push(cone);
+    });
+  }
+
+  if (secretBeaconMesh) { scene.remove(secretBeaconMesh); secretBeaconMesh = null; }
+  if (secretId && !is2DMode) {
+    const secNode = NODES.find(n => n.id === secretId);
+    if (secNode) {
+      const grp = new THREE.Group();
+      const gem = new THREE.Mesh(
+        new THREE.OctahedronGeometry(1.0, 0),
+        new THREE.MeshStandardMaterial({ color: 0xd4a373, emissive: 0x7f5539, emissiveIntensity: 0.3, roughness: 0.25, metalness: 0.6 })
+      );
+      const halo = new THREE.Mesh(
+        new THREE.TorusGeometry(1.4, 0.10, 12, 32),
+        new THREE.MeshBasicMaterial({ color: 0xe9c46a })
+      );
+      halo.rotation.x = Math.PI / 2;
+      grp.add(gem, halo);
+      grp.position.set(secNode.wx, 4.2, secNode.wz);
+      scene.add(grp);
+      secretBeaconMesh = grp;
+    }
+  }
+
+  if (!animateMove && !isHopping) {
+    players.forEach((p, idx) => {
+      const city = NODES.find(n => n.id === p.node);
+      const [ox, oz] = PAWN_RING_OFFSETS[idx] || [0, 0];
+      const pawn = playerPawns3D[p.id];
+      if (pawn) pawn.position.set(city.wx + ox, 0, city.wz + oz);
+    });
+  }
+}
+
+function updateSidebar() {
+  document.getElementById('deck-counter').textContent = `剩余牌库: ${deck.length} 张`;
+  const activeP = players[currentPlayerIdx];
+  document.getElementById('active-player-banner').textContent = `当前行动：${activeP.name}`;
+
+  // 控制全员 AI 时的手动启停按钮显隐
+  const aiCtrlBtn = document.getElementById('btn-ai-autorun');
+  const rollBtn = document.getElementById('btn-roll');
+  const endBtn = document.getElementById('btn-end');
+  if (isEveryPlayerAI()) {
+    aiCtrlBtn.style.display = 'block';
+    rollBtn.style.display = 'none';
+    endBtn.style.display = 'none';
+    if (allAIAutoRunning) {
+      aiCtrlBtn.textContent = '⏸ 暂停 AI 对局';
+      aiCtrlBtn.classList.add('paused');
+    } else {
+      aiCtrlBtn.textContent = '▶️ 开始 AI 对局';
+      aiCtrlBtn.classList.remove('paused');
+    }
+  } else {
+    aiCtrlBtn.style.display = 'none';
+    rollBtn.style.display = 'block';
+    endBtn.style.display = 'block';
+    rollBtn.disabled = activeP.isAI || hasRolled || isHopping;
+  }
+
+  const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+  if (humanViewer && humanViewer.secret) {
+    const sec = humanViewer.secret;
+    const dist = getGraphDistance(humanViewer.node, sec.id);
+    document.getElementById('hero-secret-icon').textContent = sec.icon;
+    document.getElementById('hero-secret-name').textContent = sec.name;
+    document.getElementById('hero-secret-region').textContent = `${sec.region} · 牌面分值 ${sec.score} 分 (点击定位)`;
+    document.getElementById('hero-secret-dist').textContent = dist === 0 ? '已在此城' : `${dist} 跳`;
+
+    const heroBox = document.getElementById('secret-hero-box');
+    const winHint = document.getElementById('secret-win-hint');
+    if (humanViewer.score >= 10) {
+      heroBox.classList.add('ready-to-win');
+      winHint.textContent = '🔥 已满10分！立即返回此城获胜';
+    } else {
+      heroBox.classList.remove('ready-to-win');
+      winHint.textContent = `当前 ${humanViewer.score}/10 分 · 差 ${10 - humanViewer.score} 分激活回家`;
+    }
+  }
+
+  document.getElementById('public-cards').innerHTML = publicTargets.map(t => `
+    <div class="city-card tier-${t.score}" onclick="focusCity('${t.id}')" title="点击在地图中定位该城市">
+      <div class="score-corner">${t.score}</div>
+      <div style="font-size:22px; margin:6px 0 2px;">${t.icon}</div>
+      <div style="font-size:13px; font-weight:900; color:#2c1e14;">${t.name}</div>
+      <div style="font-size:9.5px; color:#5c3a21;">${t.region}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('players-container').innerHTML = players.map((p, idx) => {
+    const loc = NODES.find(n => n.id === p.node);
+    const isAct = idx === currentPlayerIdx;
+    return `
+      <div class="player-card ${isAct ? 'active-turn' : ''}">
+        <div class="p-top">
+          <span>
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:4px;"></span>
+            <span class="player-name-editable" onclick="editPlayerName(${idx})" title="点击修改玩家名称">${p.name} ✏️</span>
+            <span style="font-weight:normal;color:#5c3a21;">@ ${loc.icon}${loc.name}</span>
+            <span class="role-badge ${p.isAI ? 'is-ai' : ''}" onclick="toggleAI(${idx})" title="点击切换真人或AI">${p.isAI ? '🤖 AI' : '👤 真人'}</span>
+          </span>
+          <span style="color:#8c1d1d;font-size:13.5px;">🏆 ${p.score}/10分</span>
+        </div>
+        <div style="font-size:11.5px; color:#4a3520; margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+          <span>🔒 秘密终点：${!p.isAI
+            ? `<span class="secret-inline-pill" onclick="focusCity('${p.secret.id}')" title="点击在地图中定位">🏠 ${p.secret.icon}${p.secret.name}</span>`
+            : '<span style="color:#7f5539;font-weight:bold;">??? (暗牌)</span>'}
+          </span>
+          ${p.score >= 10 ? '<span style="color:#8c1d1d;font-weight:900;">⚡ 速回秘密城市！</span>' : ''}
+        </div>
+        <div class="ticket-rack">
+          ${p.tickets.length ? p.tickets.map(c => `<span class="train-ticket" style="background:${COLOR_HEX[c]}">🎫 ${COLOR_CN[c]}</span>`).join('') : '<span style="font-size:10.5px;color:#7f5539;">暂无车票</span>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== 7. 主渲染循环 ====================
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  updateCameraPosition();
+
+  activeDiceAnims.forEach(anim => {
+    const t = Math.min(1, (now - anim.startTime) / anim.duration);
+    const jumpY = 1.3 + Math.sin(t * Math.PI) * (is2DMode ? 4 : 14) * (1 - t * 0.3);
+    anim.mesh.position.set(anim.startX, jumpY, anim.startZ);
+    anim.mesh.rotation.x = anim.targetRotX * t;
+    anim.mesh.rotation.z = anim.targetRotZ * t;
+    anim.mesh.rotation.y = anim.targetRotY * (1 - t);
+  });
+
+  for (let i = pawnAnimations.length - 1; i >= 0; i--) {
+    const pa = pawnAnimations[i];
+    const t = Math.min(1, (now - pa.startTime) / pa.duration);
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    pa.mesh.position.lerpVectors(pa.startPos, pa.endPos, ease);
+    pa.mesh.position.y = Math.sin(ease * Math.PI) * (is2DMode ? 1.5 : 5.2);
+    if (t >= 1) {
+      pa.mesh.position.y = 0;
+      pawnAnimations.splice(i, 1);
+    }
+  }
+
+  const pulse = 1 + Math.sin(now * 0.006) * 0.15;
+  targetBeacons.forEach(b => {
+    b.rotation.y += 0.03;
+    b.position.y = 3.5 + Math.sin(now * 0.004) * 0.45;
+  });
+  if (secretBeaconMesh) {
+    secretBeaconMesh.rotation.y -= 0.035;
+    secretBeaconMesh.position.y = 4.1 + Math.cos(now * 0.004) * 0.45;
+  }
+  Object.values(reachHaloMeshes).forEach(ring => {
+    if (ring.visible) ring.scale.set(pulse, pulse, pulse);
+  });
+
+  const container = document.getElementById('webgl-container');
+  const halfW = container.clientWidth / 2;
+  const halfH = container.clientHeight / 2;
+  if (halfW > 0 && halfH > 0) {
+    NODES.forEach(n => {
+      const v = new THREE.Vector3(n.wx, is2DMode ? 0.3 : 0.9, n.wz);
+      v.project(camera);
+      const lbl = document.getElementById(`lbl-${n.id}`);
+      if (!lbl) return;
+      if (v.z > 1) {
+        lbl.style.display = 'none';
+      } else {
+        lbl.style.display = 'block';
+        lbl.style.left = `${(v.x * halfW) + halfW}px`;
+        lbl.style.top  = `${-(v.y * halfH) + halfH}px`;
+      }
+    });
+  }
+
+  renderer.render(scene, camera);
+}
+
+function setHud(html) { document.getElementById('hud-toast').innerHTML = html; }
+function log(html) {
+  const el = document.getElementById('game-log');
+  el.innerHTML = `<div style="padding:2px 0;border-bottom:1px solid #d4bd96;">${html}</div>` + el.innerHTML;
+}
+
+window.addEventListener('load', initGame);
+</script>
+</body>
+</html>
