@@ -39,37 +39,57 @@
       border: 1.5px solid #fff; display: inline-block; flex-shrink: 0;
     }
 
-    /* 城市铭牌层 */
+    /* 城市铭牌层与引线画布（智能避让防遮挡） */
+    #labels-leader-canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 9;
+    }
     #labels-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; }
     .city-label-3d {
-      position: absolute; transform: translate(-50%, -100%);
-      background: rgba(42, 31, 23, 0.90); padding: 2px 7px; border-radius: 7px;
-      border: 1px solid #c8b08a; font-size: 10.5px; font-weight: 800; color: #f5ebe0;
-      white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.45);
-      transition: transform 0.15s, border-color 0.15s, background 0.15s;
-      pointer-events: auto; cursor: pointer;
+      position: absolute; transform: translate(-50%, -50%);
+      background: rgba(30, 21, 15, 0.66); backdrop-filter: blur(2px);
+      padding: 1.5px 5.5px; border-radius: 5px;
+      border: 1px solid rgba(200, 176, 138, 0.45);
+      font-size: 10px; font-weight: 700; color: rgba(245, 235, 224, 0.92);
+      white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.32);
+      transition: transform 0.14s, border-color 0.14s, background 0.14s, opacity 0.18s;
+      pointer-events: auto; cursor: pointer; line-height: 1.25;
     }
-    .city-label-3d:hover { transform: translate(-50%, -112%) scale(1.12); z-index: 60; border-color: #e9c46a; background: #1f1610; }
-    .city-label-3d.is-start { background: #8c1d1d; border: 1.5px solid #e9c46a; color: #fff; font-size: 11.5px; }
+    .city-label-3d:hover, .city-label-3d.is-hovered {
+      transform: translate(-50%, -50%) scale(1.15);
+      z-index: 65 !important; border-color: #e9c46a;
+      background: rgba(26, 18, 12, 0.96); color: #fff; opacity: 1 !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.65);
+    }
+    .city-label-3d.dimmed-label { opacity: 0.28; }
+    .city-label-3d.is-start {
+      background: rgba(140, 29, 29, 0.92); border: 1.5px solid #e9c46a;
+      color: #fff; font-size: 11px; font-weight: 900; z-index: 30;
+    }
     .city-label-3d.is-target {
-      background: #b45309; border: 1.5px solid #fde68a; color: #ffffff;
-      box-shadow: 0 3px 10px rgba(180, 83, 9, 0.65); animation: floatTag 1s ease-in-out infinite alternate; z-index: 35;
-      font-size: 11px;
+      background: rgba(180, 83, 9, 0.94); border: 1.5px solid #fde68a; color: #ffffff;
+      box-shadow: 0 3px 10px rgba(180, 83, 9, 0.65);
+      animation: floatTag 1.1s ease-in-out infinite alternate;
+      z-index: 40; font-size: 10.5px; font-weight: 900; padding: 2px 7px;
     }
     .city-label-3d.is-secret {
-      background: #2b211b; border: 1.5px solid #d4a373; color: #f4ece1;
-      font-size: 11.5px; padding: 2.5px 8px; border-radius: 7px;
+      background: rgba(43, 33, 27, 0.95); border: 1.5px solid #e9c46a; color: #fde68a;
+      font-size: 11px; font-weight: 900; padding: 2px 7.5px; border-radius: 6px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.65); z-index: 45;
     }
     .city-label-3d.is-reach {
-      background: #2d6a4f; border: 1.5px solid #d8f3dc; color: #ffffff;
-      box-shadow: 0 0 12px rgba(45, 106, 79, 0.9); font-size: 11px; z-index: 50;
+      background: rgba(45, 106, 79, 0.95); border: 1.5px solid #d8f3dc; color: #ffffff;
+      box-shadow: 0 0 12px rgba(45, 106, 79, 0.9);
+      font-size: 10.5px; font-weight: 900; padding: 2px 7px; z-index: 55;
     }
     .route-count-pill {
       display: inline-block; background: #e9c46a; color: #2b211b;
       font-size: 9px; font-weight: 900; padding: 0 4px; border-radius: 4px; margin-left: 3px;
     }
-    @keyframes floatTag { from { margin-top: -2px; } to { margin-top: -8px; } }
+    @keyframes floatTag {
+      from { transform: translate(-50%, -50%) translateY(0px); }
+      to   { transform: translate(-50%, -50%) translateY(-4px); }
+    }
 
     /* 多路线选择弹窗 */
     #route-picker-overlay {
@@ -461,12 +481,14 @@
       <span id="mode-hint-text" style="font-size:11px;opacity:0.9;">🖱️ 左键旋转 · 右键平移 · 悬停铁路看颜色</span>
     </div>
     <div class="cam-group">
+      <button class="cam-btn" id="btn-label-mode" onclick="cycleLabelMode()" title="切换城市名称标签显示密度">🏷️ 标签: 智能避让</button>
       <button class="cam-btn" onclick="resetDefaultView()">📐 复位视角</button>
       <button class="cam-btn" onclick="focusSecretCity()">🏠 秘密城市</button>
       <button class="cam-btn" onclick="focusCurrentPlayer()">🎯 当前位置</button>
     </div>
   </div>
 
+  <canvas id="labels-leader-canvas"></canvas>
   <div id="labels-container"></div>
 
   <div id="route-picker-overlay" onclick="if(event.target===this) closeRoutePicker()">
@@ -659,6 +681,8 @@
           <button class="sound-test-btn" onclick="SoundEngine.previewSound('goal')"><span>🔥 凑齐 10 分达标号角声</span><span>▶ 试听</span></button>
           <button class="sound-test-btn" onclick="SoundEngine.previewSound('victory')"><span>🏆 游戏胜利庆典交响</span><span>▶ 试听</span></button>
           <button class="sound-test-btn" onclick="SoundEngine.previewSound('defeat')"><span>💔 游戏惜败结算旋律</span><span>▶ 试听</span></button>
+          <button class="sound-test-btn" onclick="SoundEngine.startVictoryBGM()"><span>🎊 胜利庆典背景音 (循环)</span><span>▶ 试听</span></button>
+          <button class="sound-test-btn" onclick="SoundEngine.startTravelBGM()"><span>🎵 恢复《山河旅途》背景音</span><span>▶ 切换</span></button>
         </div>
       </div>
     </div>
@@ -702,6 +726,10 @@
       <div id="gameover-headline" style="font-size: 20px; font-weight: 900; color: #7f2d1d; margin-top: 4px;">恭喜夺冠！</div>
       <div id="gameover-detail" style="font-size: 13.5px; color: #3b281e; max-width: 390px; line-height: 1.65;"></div>
       <div id="gameover-scoreboard" style="width: 100%; background: #f3e6ce; border: 1.5px solid #c2ab86; border-radius: 10px; padding: 10px 14px; margin-top: 6px; text-align: left; font-size: 12.5px;"></div>
+      <div id="gameover-bgm-bar" style="margin-top: 6px; font-size: 11.5px; color: #6f4e37; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+        <span id="gameover-bgm-status">🎵 正在循环播放：胜利庆典背景音乐</span>
+        <button onclick="toggleBGM()" style="background:#dfd0b5;border:1px solid #8c6239;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:800;cursor:pointer;color:#2c1e14;">切换静音</button>
+      </div>
     </div>
     <div class="gm-footer" style="justify-content: center; gap: 14px;">
       <button class="gm-btn gm-btn-secondary" onclick="closeGameOverModal()">🔍 查看终局棋盘</button>
@@ -736,9 +764,10 @@ const SoundEngine = (() => {
   let sfxEnabled = true;
   let bgmTimer = null;
   let bgmStep = 0;
+  let bgmMode = 'travel'; // 'travel' | 'victory' | 'defeat'
   let unlocked = false;
 
-  // 中国五声音阶旋律库（宫商角徵羽：C4, D4, E4, G4, A4, C5, D5, E5, G5）
+  // 1) 正常旅途背景音乐：中国五声音阶（宫商角徵羽）舒缓古筝曲
   const BGM_MELODY = [
     { f: 523.25, d: 0.42 }, // C5
     { f: 587.33, d: 0.42 }, // D5
@@ -758,6 +787,39 @@ const SoundEngine = (() => {
     { f: 392.00, d: 0.85 }  // G4
   ];
   const BGM_BASS = [261.63, 261.63, 196.00, 196.00, 220.00, 220.00, 196.00, 196.00];
+
+  // 2) 终局胜利庆典背景音乐：《山河凯旋曲》欢快喜庆五声庆典旋律
+  const VICTORY_BGM_MELODY = [
+    { f: 783.99, h: 523.25, d: 0.28 }, // G5 + C5
+    { f: 880.00, h: 659.25, d: 0.28 }, // A5 + E5
+    { f: 1046.50, h: 783.99, d: 0.45 }, // C6 + G5
+    { f: 880.00, h: 659.25, d: 0.28 }, // A5 + E5
+    { f: 1046.50, h: 783.99, d: 0.28 }, // C6 + G5
+    { f: 1174.66, h: 880.00, d: 0.28 }, // D6 + A5
+    { f: 1318.51, h: 1046.50, d: 0.55 }, // E6 + C6
+    { f: 1046.50, h: 783.99, d: 0.35 }, // C6 + G5
+    { f: 1174.66, h: 783.99, d: 0.28 }, // D6 + G5
+    { f: 1046.50, h: 659.25, d: 0.28 }, // C6 + E5
+    { f: 880.00, h: 587.33, d: 0.28 }, // A5 + D5
+    { f: 783.99, h: 523.25, d: 0.45 }, // G5 + C5
+    { f: 659.25, h: 523.25, d: 0.28 }, // E5 + C5
+    { f: 783.99, h: 587.33, d: 0.28 }, // G5 + D5
+    { f: 1046.50, h: 659.25, d: 0.65 }, // C6 + E5
+    { f: 1046.50, h: 783.99, d: 0.55 }  // C6 + G5
+  ];
+  const VICTORY_BASS = [261.63, 329.63, 349.23, 392.00, 261.63, 392.00, 329.63, 523.25];
+
+  // 3) 终局惜败背景音乐：温和舒缓的余韵旋律
+  const DEFEAT_BGM_MELODY = [
+    { f: 440.00, d: 0.55 }, // A4
+    { f: 392.00, d: 0.55 }, // G4
+    { f: 329.63, d: 0.65 }, // E4
+    { f: 293.66, d: 0.65 }, // D4
+    { f: 329.63, d: 0.55 }, // E4
+    { f: 392.00, d: 0.55 }, // G4
+    { f: 293.66, d: 0.65 }, // D4
+    { f: 261.63, d: 0.85 }  // C4
+  ];
 
   function ensureContext() {
     if (!ctx) {
@@ -799,29 +861,78 @@ const SoundEngine = (() => {
     osc.stop(t0 + dur + 0.02);
   }
 
-  function startBGM() {
-    if (bgmTimer) return;
+  function startBGM(modeOverride = null) {
+    if (modeOverride) bgmMode = modeOverride;
+    stopBGM();
     const c = ensureContext();
     if (!c || !bgmEnabled) return;
 
-    bgmTimer = setInterval(() => {
-      if (!bgmEnabled || !ctx || ctx.state !== 'running') return;
-      const note = BGM_MELODY[bgmStep % BGM_MELODY.length];
-      if (note && note.f) {
-        playPluckNote(note.f, note.d * 1.35, 0.032, 0, 'triangle');
-      }
-      if (bgmStep % 2 === 0) {
-        const bassFreq = BGM_BASS[(bgmStep / 2) % BGM_BASS.length];
-        playPluckNote(bassFreq, 0.95, 0.022, 0, 'sine');
-      }
-      bgmStep++;
-    }, 460);
+    if (bgmMode === 'victory') {
+      bgmStep = 0;
+      bgmTimer = setInterval(() => {
+        if (!bgmEnabled || !ctx || ctx.state !== 'running') return;
+        const note = VICTORY_BGM_MELODY[bgmStep % VICTORY_BGM_MELODY.length];
+        if (note && note.f) {
+          playPluckNote(note.f, note.d * 1.3, 0.065, 0, 'triangle');
+          if (note.h) playPluckNote(note.h, note.d * 1.3, 0.04, 0.02, 'sine');
+        }
+        if (bgmStep % 2 === 0) {
+          const bf = VICTORY_BASS[(bgmStep / 2) % VICTORY_BASS.length];
+          playPluckNote(bf, 0.55, 0.045, 0, 'triangle');
+        }
+        bgmStep++;
+      }, 290);
+    } else if (bgmMode === 'defeat') {
+      bgmStep = 0;
+      bgmTimer = setInterval(() => {
+        if (!bgmEnabled || !ctx || ctx.state !== 'running') return;
+        const note = DEFEAT_BGM_MELODY[bgmStep % DEFEAT_BGM_MELODY.length];
+        if (note && note.f) {
+          playPluckNote(note.f, note.d * 1.3, 0.042, 0, 'sine');
+          playPluckNote(note.f * 0.5, note.d * 1.4, 0.028, 0, 'triangle');
+        }
+        bgmStep++;
+      }, 560);
+    } else {
+      bgmTimer = setInterval(() => {
+        if (!bgmEnabled || !ctx || ctx.state !== 'running') return;
+        const note = BGM_MELODY[bgmStep % BGM_MELODY.length];
+        if (note && note.f) {
+          playPluckNote(note.f, note.d * 1.35, 0.032, 0, 'triangle');
+        }
+        if (bgmStep % 2 === 0) {
+          const bassFreq = BGM_BASS[(bgmStep / 2) % BGM_BASS.length];
+          playPluckNote(bassFreq, 0.95, 0.022, 0, 'sine');
+        }
+        bgmStep++;
+      }, 460);
+    }
   }
 
   function stopBGM() {
     if (bgmTimer) {
       clearInterval(bgmTimer);
       bgmTimer = null;
+    }
+  }
+
+  function startVictoryBGM() {
+    playVictory();
+    setTimeout(() => {
+      if (bgmEnabled) startBGM('victory');
+    }, 950);
+  }
+
+  function startDefeatBGM() {
+    playDefeat();
+    setTimeout(() => {
+      if (bgmEnabled) startBGM('defeat');
+    }, 1100);
+  }
+
+  function startTravelBGM() {
+    if (bgmMode !== 'travel' || !bgmTimer) {
+      startBGM('travel');
     }
   }
 
@@ -1030,8 +1141,8 @@ const SoundEngine = (() => {
     }
     else if (kind === 'score') playScoreGain(3);
     else if (kind === 'goal') playScoreGoalReached();
-    else if (kind === 'victory') playVictory();
-    else if (kind === 'defeat') playDefeat();
+    else if (kind === 'victory') startVictoryBGM();
+    else if (kind === 'defeat') startDefeatBGM();
     sfxEnabled = prevSfx;
   }
 
@@ -1039,6 +1150,9 @@ const SoundEngine = (() => {
     unlockAudio,
     startBGM,
     stopBGM,
+    startVictoryBGM,
+    startDefeatBGM,
+    startTravelBGM,
     playClick,
     playDiceRoll,
     playWildGo,
@@ -1261,15 +1375,18 @@ function showGameOverModal(winnerPlayer) {
   const hasHuman = players.some(p => !p.isAI);
   const isHumanFailure = hasHuman && winnerPlayer.isAI;
 
+  const bgmStatusEl = document.getElementById('gameover-bgm-status');
   if (isHumanFailure) {
-    SoundEngine.playDefeat();
+    SoundEngine.startDefeatBGM();
+    if (bgmStatusEl) bgmStatusEl.textContent = '🎵 正在播放：终局余韵背景音';
     document.getElementById('gameover-title').textContent = '💔 旅程惜败 · 对手抢先回家';
     document.getElementById('gameover-icon').textContent = '🚄';
     document.getElementById('gameover-headline').textContent = `${winnerPlayer.name} 率先完成旅程！`;
     document.getElementById('gameover-detail').innerHTML =
       `对手 <b>【${winnerPlayer.name}】</b> 已攒够 <b>${winnerPlayer.score} 分</b> 并率先返回其秘密终点 <b>【${winnerPlayer.secret.icon}${winnerPlayer.secret.name}】</b>。<br>别灰心，调整换乘路线再来一局吧！`;
   } else {
-    SoundEngine.playVictory();
+    SoundEngine.startVictoryBGM();
+    if (bgmStatusEl) bgmStatusEl.textContent = '🎵 正在循环播放：《山河凯旋曲》胜利背景音';
     document.getElementById('gameover-title').textContent = '🎊 山河之旅 · 荣耀夺冠！';
     document.getElementById('gameover-icon').textContent = '🏆';
     document.getElementById('gameover-headline').textContent = `恭喜 ${winnerPlayer.name} 赢得最终胜利！`;
@@ -1298,6 +1415,7 @@ function closeGameOverModal() {
 function resetGameSession() {
   if (isHopping) return;
   SoundEngine.playClick();
+  SoundEngine.startTravelBGM();
   closeRoutePicker();
   closeGameOverModal();
 
@@ -1528,6 +1646,83 @@ NODES.forEach(n => {
   n.wx = pos.x;
   n.wz = pos.z;
 });
+
+// ==================== 1.5 城市标签防遮挡偏移配置与显示模式 ====================
+// 针对 50 座城市的专属屏幕偏移向量 [dx, dy]（单位 px）：
+// 避开正上方的 3D 棋子、悬浮信标与手绘地标贴纸，并根据邻近城市拓扑向外侧错位排布
+const CITY_LABEL_OFFSETS = {
+  beijing:       [-42, -8],
+  tianjin:       [40, 4],
+  shijiazhuang:  [-44, 10],
+  taiyuan:       [-38, 6],
+  hohhot:        [-42, -10],
+  hulunbuir:     [0, 19],
+  harbin:        [-40, 8],
+  jiamusi:       [40, 6],
+  changchun:     [-38, 8],
+  shenyang:      [-38, 12],
+  dalian:        [-36, 12],
+  jinan:         [-36, 12],
+  qingdao:       [38, 12],
+  zhengzhou:     [-38, 12],
+  luoyang:       [-32, -16],
+  xian:          [0, 19],
+  yinchuan:      [-38, 8],
+  lanzhou:       [-38, -12],
+  tianshui:      [36, -12],
+  xining:        [0, 19],
+  dunhuang:      [-40, 10],
+  urumqi:        [-42, 12],
+  hohxil:        [0, 19],
+  ngari:         [0, 19],
+  lhasa:         [-38, 14],
+  chengdu:       [-38, 12],
+  chongqing:     [38, 14],
+  lijiang:       [-38, -10],
+  kunming:       [-38, 12],
+  xishuangbanna: [0, 19],
+  guiyang:       [-36, -12],
+  zhangjiajie:   [-40, 12],
+  wuhan:         [-38, 12],
+  hefei:         [-36, -14],
+  nanjing:       [38, -12],
+  shanghai:      [40, 12],
+  hangzhou:      [40, 12],
+  nanchang:      [38, -10],
+  changsha:      [-38, 12],
+  guilin:        [-36, -12],
+  nanning:       [-38, 14],
+  haikou:        [38, 10],
+  guangzhou:     [-38, -12],
+  macau:         [-38, 14],
+  hongkong:      [40, -10],
+  fuzhou:        [38, 8],
+  xiamen:        [38, 10],
+  taipei:        [38, -6],
+  kaohsiung:     [38, 10]
+};
+
+let labelDisplayMode = 'smart'; // 'smart' (智能避让全部显示) | 'key' (仅关键城市) | 'hover' (仅悬停显示)
+let currentlyHoveredNodeId = null;
+
+function cycleLabelMode() {
+  SoundEngine.playClick();
+  const order = ['smart', 'key', 'hover'];
+  const nextIdx = (order.indexOf(labelDisplayMode) + 1) % order.length;
+  labelDisplayMode = order[nextIdx];
+  const btn = document.getElementById('btn-label-mode');
+  if (labelDisplayMode === 'smart') {
+    btn.textContent = '🏷️ 标签: 智能避让';
+    setHud('🏷️ 已切换为【智能避让模式】：全城标签自动避开 3D 车站与棋子');
+  } else if (labelDisplayMode === 'key') {
+    btn.textContent = '🏷️ 标签: 仅关键城';
+    setHud('🏷️ 已切换为【仅关键城模式】：仅常显目标/秘密/可达城市，其余城市悬停查看');
+  } else {
+    btn.textContent = '🏷️ 标签: 悬停显示';
+    setHud('🏷️ 已切换为【纯净沙盘模式】：隐藏普通标签，鼠标悬停车站或铁轨时即时浮现');
+  }
+}
+
 
 // ==================== 2. 地图纹理绘制 ====================
 const PROVINCE_PALETTE = {
@@ -3468,6 +3663,7 @@ function onNodeClick(nodeId) {
 }
 
 function onNodeHover(nodeId, isEnter) {
+  currentlyHoveredNodeId = isEnter ? nodeId : null;
   if (isHopping || isPickingRoute) return;
   const p = players[currentPlayerIdx];
   const routes = nodeId ? reachablePaths[nodeId] : null;
@@ -3780,20 +3976,164 @@ function animate(now) {
   });
 
   const container = document.getElementById('webgl-container');
-  const halfW = container.clientWidth / 2;
-  const halfH = container.clientHeight / 2;
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const halfW = cw / 2;
+  const halfH = ch / 2;
+
+  const leaderCanvas = document.getElementById('labels-leader-canvas');
+  if (leaderCanvas && (leaderCanvas.width !== cw || leaderCanvas.height !== ch)) {
+    leaderCanvas.width = cw;
+    leaderCanvas.height = ch;
+  }
+  const lCtx = leaderCanvas ? leaderCanvas.getContext('2d') : null;
+  if (lCtx) lCtx.clearRect(0, 0, cw, ch);
+
   if (halfW > 0 && halfH > 0) {
+    const activeP = players[currentPlayerIdx];
+    const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+    const secretId = humanViewer && humanViewer.secret ? humanViewer.secret.id : null;
+    const occupiedNodes = new Set(players.map(p => p.node));
+
+    // 悬停某条铁轨时，提取该铁轨两端城市 ID
+    let hoveredEdgeNodes = null;
+    if (currentlyHoveredEdgeKey) {
+      hoveredEdgeNodes = currentlyHoveredEdgeKey.split('-');
+    }
+
+    // 1. 计算所有车站的屏幕中心坐标 (sx, sy) 与初始偏移标签位置 (lx, ly)
+    const items = [];
     NODES.forEach(n => {
-      const v = new THREE.Vector3(n.wx, is2DMode ? 0.3 : 0.9, n.wz);
-      v.project(camera);
       const lbl = document.getElementById(`lbl-${n.id}`);
       if (!lbl) return;
+
+      const v = new THREE.Vector3(n.wx, 0.28, n.wz);
+      v.project(camera);
       if (v.z > 1) {
         lbl.style.display = 'none';
-      } else {
-        lbl.style.display = 'block';
-        lbl.style.left = `${(v.x * halfW) + halfW}px`;
-        lbl.style.top  = `${-(v.y * halfH) + halfH}px`;
+        return;
+      }
+
+      const sx = (v.x * halfW) + halfW;
+      const sy = -(v.y * halfH) + halfH;
+
+      const isTarget = publicTargets.some(t => t.id === n.id);
+      const isReach = !activeP.isAI && !isHopping && reachablePaths[n.id] && reachablePaths[n.id].length > 0;
+      const isSecret = (n.id === secretId);
+      const isPlayerHere = occupiedNodes.has(n.id);
+      const isHovered = (currentlyHoveredNodeId === n.id) || (hoveredEdgeNodes && hoveredEdgeNodes.includes(n.id));
+      const isInHoveredPath = hoveredPathNodes.includes(n.id);
+      const isKeyCity = n.isStart || isTarget || isSecret || isReach || isPlayerHere || isHovered || isInHoveredPath;
+
+      // 根据标签显示模式过滤
+      if (labelDisplayMode === 'key' && !isKeyCity) {
+        lbl.style.display = 'none';
+        return;
+      }
+      if (labelDisplayMode === 'hover' && !isHovered && !isReach && !isTarget && !isSecret) {
+        lbl.style.display = 'none';
+        return;
+      }
+
+      lbl.style.display = 'block';
+      lbl.classList.toggle('is-hovered', !!isHovered);
+
+      // 当鼠标正在悬停某条铁轨或预览路线时，非相关普通标签自动半透明退让
+      const shouldDim = (currentlyHoveredEdgeKey && !isHovered) || (hoveredPathNodes.length > 0 && !isInHoveredPath && !isTarget && !isSecret);
+      lbl.classList.toggle('dimmed-label', !!shouldDim);
+
+      const [ox, oy] = CITY_LABEL_OFFSETS[n.id] || [0, 18];
+      // 若该城市上有 3D 棋子站立，避免标签放在正上方遮挡棋子头部
+      const safeOy = (isPlayerHere && oy < 0 && Math.abs(ox) < 28) ? 20 : oy;
+
+      const estW = isSecret ? 96 : (isReach ? 68 : 54);
+      const estH = 19;
+
+      items.push({
+        id: n.id,
+        lbl,
+        sx, sy,
+        lx: sx + ox,
+        ly: sy + safeOy,
+        w: estW,
+        h: estH,
+        isKeyCity,
+        isHovered
+      });
+    });
+
+    // 2. 屏幕空间迭代避让：确保任何标签绝不盖住任何 3D 车站圆盘，且标签之间互不重叠
+    const stationKeepOutR = 14; // 车站圆盘保护半径 (px)
+    for (let iter = 0; iter < 3; iter++) {
+      // 2a. 推开侵入任何 3D 车站圆盘中心的标签
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        for (let j = 0; j < items.length; j++) {
+          const st = items[j];
+          const dx = it.lx - st.sx;
+          const dy = it.ly - st.sy;
+          const minX = it.w * 0.5 + stationKeepOutR;
+          const minY = it.h * 0.5 + stationKeepOutR;
+          if (Math.abs(dx) < minX && Math.abs(dy) < minY) {
+            const overlapX = minX - Math.abs(dx);
+            const overlapY = minY - Math.abs(dy);
+            if (overlapY < overlapX) {
+              it.ly += (dy >= 0 ? overlapY : -overlapY) * 0.75;
+            } else {
+              it.lx += (dx >= 0 ? overlapX : -overlapX) * 0.75;
+            }
+          }
+        }
+      }
+
+      // 2b. 标签与标签之间的碰撞斥力
+      for (let i = 0; i < items.length; i++) {
+        for (let j = i + 1; j < items.length; j++) {
+          const a = items[i], b = items[j];
+          const dx = b.lx - a.lx;
+          const dy = b.ly - a.ly;
+          const minW = (a.w + b.w) * 0.5 + 3;
+          const minH = (a.h + b.h) * 0.5 + 2;
+          if (Math.abs(dx) < minW && Math.abs(dy) < minH) {
+            const pushY = (minH - Math.abs(dy)) * 0.5;
+            const dirY = dy >= 0 ? 1 : -1;
+            a.ly -= dirY * pushY;
+            b.ly += dirY * pushY;
+          }
+        }
+      }
+    }
+
+    // 3. 应用最终坐标并绘制精致引线 (Leader Line) 连接偏移标签与 3D 车站中心
+    items.forEach(it => {
+      it.lbl.style.left = `${it.lx}px`;
+      it.lbl.style.top  = `${it.ly}px`;
+
+      if (lCtx) {
+        const dist = Math.hypot(it.lx - it.sx, it.ly - it.sy);
+        if (dist > 15) {
+          const angle = Math.atan2(it.ly - it.sy, it.lx - it.sx);
+          const startX = it.sx + Math.cos(angle) * 6;
+          const startY = it.sy + Math.sin(angle) * 6;
+          const endX   = it.lx - Math.cos(angle) * Math.min(it.w * 0.42, dist - 7);
+          const endY   = it.ly - Math.sin(angle) * Math.min(it.h * 0.48, dist - 7);
+
+          lCtx.save();
+          lCtx.beginPath();
+          lCtx.moveTo(startX, startY);
+          lCtx.lineTo(endX, endY);
+          lCtx.strokeStyle = it.isHovered
+            ? 'rgba(253, 230, 138, 0.95)'
+            : (it.isKeyCity ? 'rgba(233, 196, 106, 0.78)' : 'rgba(212, 163, 115, 0.42)');
+          lCtx.lineWidth = it.isHovered || it.isKeyCity ? 1.6 : 1.0;
+          lCtx.stroke();
+
+          lCtx.beginPath();
+          lCtx.arc(startX, startY, it.isKeyCity ? 2.2 : 1.5, 0, Math.PI * 2);
+          lCtx.fillStyle = it.isKeyCity ? '#fde68a' : 'rgba(245, 235, 224, 0.65)';
+          lCtx.fill();
+          lCtx.restore();
+        }
       }
     });
   }
