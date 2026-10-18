@@ -486,7 +486,17 @@
         box-shadow: -12px 0 32px rgba(0, 0, 0, 0.65);
       }
       #sidebar.drawer-open { transform: translateX(0); }
+      /* 抽屉展开时的半透明遮罩，点击棋盘空白即可收起（兜底，防止收起按钮不可见时卡死） */
+      #sidebar::before {
+        content: ''; position: fixed; top: 0; left: -100vw; width: 100vw; height: 100vh;
+        background: rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.25s;
+      }
+      #sidebar.drawer-open::before { opacity: 1; pointer-events: auto; }
       .sidebar-mobile-close { display: inline-block; }
+      #sidebar.drawer-open .sidebar-mobile-close {
+        position: sticky; top: 6px; z-index: 5;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+      }
       .sidebar-body { padding: 8px; gap: 8px; }
     }
     @media (max-width: 900px) and (max-height: 500px) {
@@ -495,6 +505,20 @@
       .cam-btn { padding: 3px 6px; font-size: 10px; }
       .sidebar-header { padding: 8px 12px; }
       .sidebar-header h1 { font-size: 14px; }
+      #hud-toast { bottom: 66px; }
+    }
+
+    /* 移动端常驻操作栏：投骰/结束回合/GO 换票，无需打开抽屉 */
+    #quick-action-bar { display: none; }
+    @media (max-width: 900px) {
+      #quick-action-bar {
+        display: flex; position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 70;
+        gap: 8px; padding: 8px;
+        background: rgba(34, 24, 18, 0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        border-radius: 14px; border: 1.5px solid rgba(242, 226, 196, 0.25);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      }
+      #quick-action-bar .cam-btn { flex: 1; padding: 11px 6px; font-size: 12.5px; }
     }
 
   </style>
@@ -542,6 +566,13 @@
   </div>
 
   <div id="hud-toast">🎲 欢迎来到《山河之旅》，请投掷车票骰子开始旅程</div>
+
+  <!-- 移动端常驻操作栏（手机横竖屏都可见，投骰/结束回合/GO 换票无需打开抽屉） -->
+  <div id="quick-action-bar">
+    <button class="cam-btn" id="qa-roll" onclick="rollDice()">🎲 投掷骰子</button>
+    <button class="cam-btn" id="qa-end" onclick="endTurn()">⏭ 结束回合</button>
+    <button class="cam-btn" id="qa-wild" onclick="pickWild(currentlyWildColor || 'red')">🌈 GO换票</button>
+  </div>
 </div>
 
 <!-- 右侧控制面板 -->
@@ -2857,6 +2888,9 @@ function resetDefaultView() {
 
 // 移动端：侧栏抽屉开关（宽屏下按钮隐藏，此函数仅移动端可达）
 function toggleSidebarDrawer(forceOpen) {
+  document.getElementById('sidebar').addEventListener('click', e => {
+    if (e.target.id === 'sidebar' && window.matchMedia('(max-width: 900px)').matches) toggleSidebarDrawer(false);
+  });
   const sb = document.getElementById('sidebar');
   const open = (typeof forceOpen === 'boolean') ? forceOpen : !sb.classList.contains('drawer-open');
   sb.classList.toggle('drawer-open', open);
@@ -2881,8 +2915,8 @@ function initWebGLScene() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
   const isMobileLayout = window.matchMedia('(max-width: 900px)').matches;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileLayout ? 1.5 : 2));
-  renderer.shadowMap.enabled = true;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileLayout ? 1.25 : 2));
+  renderer.shadowMap.enabled = !isMobileLayout; // 手机端关闭阴影换取流畅度
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
 
@@ -2890,9 +2924,9 @@ function initWebGLScene() {
 
   const dirLight = new THREE.DirectionalLight(0xfffaed, 0.65);
   dirLight.position.set(28, 68, 38);
-  dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = isMobileLayout ? 1024 : 2048;
-  dirLight.shadow.mapSize.height = isMobileLayout ? 1024 : 2048;
+  dirLight.castShadow = !isMobileLayout;
+  dirLight.shadow.mapSize.width = isMobileLayout ? 768 : 2048;
+  dirLight.shadow.mapSize.height = isMobileLayout ? 768 : 2048;
   const d = 46;
   dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
   dirLight.shadow.camera.top = d;  dirLight.shadow.camera.bottom = -d;
@@ -3453,6 +3487,7 @@ let hasRolled = false;
 let reachablePaths = {};
 let hoveredPathNodes = [];
 let isGameOver = false; // 终局结算弹窗显示期间为 true，用于阻止「音效试听」劫持的背景乐被误恢复成旅途 BGM
+let currentlyWildColor = null; // 待兑换的 GO! 万能票当前选中的颜色（快捷栏 GO 换票按钮使用）
 
 function isEveryPlayerAI() {
   return players.every(p => p.isAI);
@@ -3671,6 +3706,7 @@ function rollDice() {
 
 function pickWild(color) {
   if (pendingWilds <= 0) return;
+  currentlyWildColor = color;
   SoundEngine.playWildGo();
   const p = players[currentPlayerIdx];
   p.tickets.push(color);
@@ -4145,8 +4181,7 @@ function updateSidebar() {
     </div>
   `).join('');
 
-  document.getElementById('players-container').innerHTML = players.map((p, idx) => {
-    const loc = NODES.find(n => n.id === p.node);
+  document.getElementById('players-container').innerHTML = players.map((p, idx) => {    const loc = NODES.find(n => n.id === p.node);
     const isAct = idx === currentPlayerIdx;
     return `
       <div class="player-card ${isAct ? 'active-turn' : ''}">
@@ -4172,6 +4207,20 @@ function updateSidebar() {
       </div>
     `;
   }).join('');
+
+  // 移动端快捷操作栏状态同步（与抽屉内按钮保持一致）
+  const qaBar = document.getElementById('quick-action-bar');
+  const qaRoll = document.getElementById('qa-roll');
+  const qaEnd = document.getElementById('qa-end');
+  const qaWild = document.getElementById('qa-wild');
+  const drawerOpen = document.getElementById('sidebar').classList.contains('drawer-open');
+  if (qaBar) qaBar.style.visibility = drawerOpen ? 'hidden' : 'visible';
+  if (qaRoll) qaRoll.disabled = !(!activeP.isAI && !hasRolled && !isHopping && !isPickingRoute);
+  if (qaEnd) qaEnd.disabled = !(!activeP.isAI && hasRolled && !isHopping && !isPickingRoute);
+  if (qaWild) {
+    qaWild.disabled = pendingWilds <= 0;
+    qaWild.textContent = pendingWilds > 0 ? `🌈 GO!换票（剩${pendingWilds}张，当前${COLOR_CN[currentlyWildColor || 'red']}）` : '🌈 GO换票';
+  }
 }
 
 // ==================== 7. 主渲染循环 ====================
