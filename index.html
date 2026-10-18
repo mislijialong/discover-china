@@ -3306,10 +3306,22 @@ function bindCanvasEvents(domElement, container) {
   window.addEventListener('pointermove', e => {
     if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
+    // 捏合需位移超过阈值才激活，避免两指先后落下的间隔被误识别为单指旋转
+    if (!isPinching && activePointers.size >= 2) {
+      const pts = [...activePointers.values()];
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      if (Math.abs(d - pinchStartDist) > 14) {
+        isPinching = true;
+        pinchStartDist = d;
+        pinchStartRadius = camState.targetRadius;
+        pinchMidLast = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      }
+    }
+
     if (isPinching && activePointers.size >= 2) {
       const pts = [...activePointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-      camState.targetRadius = Math.max(20, Math.min(125, pinchStartRadius * pinchStartDist / Math.max(20, dist)));
+      camState.targetRadius = Math.max(14, Math.min(125, pinchStartRadius * Math.max(20, dist) / pinchStartDist));
       const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
       panCameraByPixels(mid.x - pinchMidLast.x, mid.y - pinchMidLast.y);
       pinchMidLast = mid;
@@ -3368,7 +3380,7 @@ function bindCanvasEvents(domElement, container) {
 
       const activeP = players[currentPlayerIdx];
       const otherNodeId = (activeP.node === ed.uId) ? ed.vId : ((activeP.node === ed.vId) ? ed.uId : null);
-      domElement.style.cursor = (otherNodeId && reachablePaths[otherNodeId]) ? 'pointer' : 'help';
+      domElement.style.cursor = (otherNodeId && reachablePaths[otherNodeId]) ? 'pointer' : 'grab'; // 去掉不可点击时的问号光标，避免误导
     } else {
       clearSingleEdgeHover();
       edgeTipEl.style.display = 'none';
@@ -3421,7 +3433,7 @@ function bindCanvasEvents(domElement, container) {
 
   domElement.addEventListener('wheel', e => {
     e.preventDefault();
-    camState.targetRadius = Math.max(20, Math.min(125, camState.targetRadius + e.deltaY * 0.05));
+    camState.targetRadius = Math.max(14, Math.min(125, camState.targetRadius + e.deltaY * 0.05));
   }, { passive: false });
 
   window.addEventListener('resize', () => {
@@ -4214,7 +4226,10 @@ function updateSidebar() {
   const qaEnd = document.getElementById('qa-end');
   const qaWild = document.getElementById('qa-wild');
   const drawerOpen = document.getElementById('sidebar').classList.contains('drawer-open');
-  if (qaBar) qaBar.style.visibility = drawerOpen ? 'hidden' : 'visible';
+  if (qaBar) {
+    qaBar.style.visibility = drawerOpen ? 'hidden' : 'visible';
+    qaBar.style.pointerEvents = drawerOpen ? 'none' : 'auto'; // 彻底禁用点击，防止半透明元素意外拦截缩放/旋转手势
+  }
   if (qaRoll) qaRoll.disabled = !(!activeP.isAI && !hasRolled && !isHopping && !isPickingRoute);
   if (qaEnd) qaEnd.disabled = !(!activeP.isAI && hasRolled && !isHopping && !isPickingRoute);
   if (qaWild) {
