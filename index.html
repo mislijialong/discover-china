@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="3D 桌游《山河之旅》网页版：掷骰攒车票游历中国 49 座名城，凑满 10 分回到秘密城市夺冠！支持多人同屏与 AI 托管。">
+  <meta property="og:title" content="山河之旅 Discover China">
+  <meta property="og:description" content="掷骰攒车票游历中国名城，凑满10分回到秘密城市夺冠！支持多人同屏与 AI 托管。">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/emoji,🚂">
   <title>山河之旅 (Discover China)</title>
   <style>
     :root {
@@ -27,7 +32,7 @@
     #edge-hover-tooltip {
       position: fixed; pointer-events: none; z-index: 95;
       display: none; align-items: center; gap: 8px;
-      background: rgba(34, 24, 18, 0.96); backdrop-filter: blur(6px);
+      background: rgba(34, 24, 18, 0.96); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
       color: #f4ece1; padding: 6px 14px; border-radius: 18px;
       font-size: 12.5px; font-weight: 800; white-space: nowrap;
       box-shadow: 0 6px 20px rgba(0,0,0,0.6);
@@ -47,7 +52,7 @@
     #labels-container { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 10; }
     .city-label-3d {
       position: absolute; transform: translate(-50%, -50%);
-      background: rgba(30, 21, 15, 0.66); backdrop-filter: blur(2px);
+      background: rgba(30, 21, 15, 0.66); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
       padding: 1.5px 5.5px; border-radius: 5px;
       border: 1px solid rgba(200, 176, 138, 0.45);
       font-size: 10px; font-weight: 700; color: rgba(245, 235, 224, 0.92);
@@ -94,7 +99,7 @@
     /* 多路线选择弹窗 */
     #route-picker-overlay {
       position: absolute; inset: 0; background: rgba(18, 12, 8, 0.55);
-      backdrop-filter: blur(3px); z-index: 80; display: none;
+      -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); z-index: 80; display: none;
       justify-content: center; align-items: flex-end; padding-bottom: 68px;
     }
     .route-picker-card {
@@ -164,7 +169,7 @@
     }
     .cam-group {
       pointer-events: auto; display: flex; gap: 8px; align-items: center;
-      background: rgba(36, 25, 18, 0.92); backdrop-filter: blur(8px);
+      background: rgba(36, 25, 18, 0.92); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
       padding: 6px 12px; border-radius: 9px; border: 1px solid #7f5539;
       color: #e6ccb2; font-size: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.5);
     }
@@ -339,7 +344,7 @@
     /* 通用古风弹窗遮罩（游戏规则、改名、胜负结算） */
     .game-modal-overlay {
       position: fixed; inset: 0; background: rgba(16, 10, 6, 0.72);
-      backdrop-filter: blur(5px); z-index: 120; display: none;
+      -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); z-index: 120; display: none;
       justify-content: center; align-items: center; padding: 20px;
     }
     .game-modal-card {
@@ -460,8 +465,8 @@
     }
 
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-          onerror="this.onerror=null;this.src='https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/three.js/r128/three.min.js';"></script>
+  <script src="./three.min.js"
+          onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';"></script>
 </head>
 <body>
 
@@ -757,6 +762,19 @@
 
 <script>
 
+// iOS Safari < 16 兼容补丁：roundRect polyfill，防止旧系统绘制棋盘纹理时抛异常导致黑盘
+if (window.CanvasRenderingContext2D && !CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    this.moveTo(x + rr, y);
+    this.arcTo(x + w, y, x + w, y + h, rr);
+    this.arcTo(x + w, y + h, x, y + h, rr);
+    this.arcTo(x, y + h, x, y, rr);
+    this.arcTo(x, y, x + w, y, rr);
+    this.closePath();
+  };
+}
+
 // ==================== 0. Web Audio 合成音效引擎 (SoundEngine) ====================
 const SoundEngine = (() => {
   let ctx = null;
@@ -766,6 +784,7 @@ const SoundEngine = (() => {
   let bgmStep = 0;
   let bgmMode = 'travel'; // 'travel' | 'victory' | 'defeat'
   let unlocked = false;
+  let bgmEpoch = 0; // 每次真正启动 BGM 时自增，用于作废延迟 setTimeout 里迟到的旧模式启动请求
 
   // 1) 正常旅途背景音乐：中国五声音阶（宫商角徵羽）舒缓古筝曲
   const BGM_MELODY = [
@@ -864,6 +883,7 @@ const SoundEngine = (() => {
   function startBGM(modeOverride = null) {
     if (modeOverride) bgmMode = modeOverride;
     stopBGM();
+    bgmEpoch++;
     const c = ensureContext();
     if (!c || !bgmEnabled) return;
 
@@ -918,15 +938,17 @@ const SoundEngine = (() => {
 
   function startVictoryBGM() {
     playVictory();
+    const epoch = bgmEpoch;
     setTimeout(() => {
-      if (bgmEnabled) startBGM('victory');
+      if (epoch === bgmEpoch && bgmEnabled) startBGM('victory');
     }, 950);
   }
 
   function startDefeatBGM() {
     playDefeat();
+    const epoch = bgmEpoch;
     setTimeout(() => {
-      if (bgmEnabled) startBGM('defeat');
+      if (epoch === bgmEpoch && bgmEnabled) startBGM('defeat');
     }, 1100);
   }
 
@@ -1212,6 +1234,8 @@ function openRulesModal(defaultTab = 'rules') {
 function closeRulesModal() {
   SoundEngine.playClick();
   document.getElementById('rules-modal-overlay').style.display = 'none';
+  // 若刚才在音效试听台试听过胜利/惜败循环背景乐，关闭弹窗后恢复旅途 BGM（终局结算期间除外）
+  if (!isGameOver) SoundEngine.startTravelBGM();
 }
 
 function switchRulesTab(tabName) {
@@ -1221,13 +1245,14 @@ function switchRulesTab(tabName) {
     if (btn) btn.classList.toggle('active', t === tabName);
     if (panel) panel.style.display = (t === tabName) ? 'flex' : 'none';
   });
+  if (tabName !== 'sound' && !isGameOver) SoundEngine.startTravelBGM();
 }
 
 const ONBOARDING_STEPS = [
   {
     targetSelector: '#webgl-container',
     title: '🎉 欢迎来到《山河之旅》3D 桌游！',
-    desc: '你将与对手一起从首都【🏯北京】出发，搭乘五色高铁游历中国 50 座风景名城。率先收集满 <b>10 分</b>并返回自己专属<b>秘密城市</b>的玩家获胜！',
+    desc: '你将与对手一起从首都【🏯北京】出发，搭乘五色高铁游历中国 49 座风景名城。率先收集满 <b>10 分</b>并返回自己专属<b>秘密城市</b>的玩家获胜！',
     cardPos: 'center'
   },
   {
@@ -1372,6 +1397,7 @@ function confirmNameModal() {
 }
 
 function showGameOverModal(winnerPlayer) {
+  isGameOver = true;
   const hasHuman = players.some(p => !p.isAI);
   const isHumanFailure = hasHuman && winnerPlayer.isAI;
 
@@ -1383,7 +1409,7 @@ function showGameOverModal(winnerPlayer) {
     document.getElementById('gameover-icon').textContent = '🚄';
     document.getElementById('gameover-headline').textContent = `${winnerPlayer.name} 率先完成旅程！`;
     document.getElementById('gameover-detail').innerHTML =
-      `对手 <b>【${winnerPlayer.name}】</b> 已攒够 <b>${winnerPlayer.score} 分</b> 并率先返回其秘密终点 <b>【${winnerPlayer.secret.icon}${winnerPlayer.secret.name}】</b>。<br>别灰心，调整换乘路线再来一局吧！`;
+      `对手 <b>【${winnerPlayer.name}】</b> 已攒够 <b>${winnerPlayer.score} 分</b> 并率先返回其秘密终点 <b>【${winnerPlayer.secret ? winnerPlayer.secret.icon + winnerPlayer.secret.name : '???'}】</b>。<br>别灰心，调整换乘路线再来一局吧！`;
   } else {
     SoundEngine.startVictoryBGM();
     if (bgmStatusEl) bgmStatusEl.textContent = '🎵 正在循环播放：《山河凯旋曲》胜利背景音';
@@ -1391,7 +1417,7 @@ function showGameOverModal(winnerPlayer) {
     document.getElementById('gameover-icon').textContent = '🏆';
     document.getElementById('gameover-headline').textContent = `恭喜 ${winnerPlayer.name} 赢得最终胜利！`;
     document.getElementById('gameover-detail').innerHTML =
-      `<b>【${winnerPlayer.name}】</b> 游历四方攒够 <b>${winnerPlayer.score} 分</b>，并成功返回秘密回家城市 <b>【${winnerPlayer.secret.icon}${winnerPlayer.secret.name}】</b>！`;
+      `<b>【${winnerPlayer.name}】</b> 游历四方攒够 <b>${winnerPlayer.score} 分</b>，并成功返回秘密回家城市 <b>【${winnerPlayer.secret ? winnerPlayer.secret.icon + winnerPlayer.secret.name : '???'}】</b>！`;
   }
 
   const sorted = [...players].sort((a, b) => b.score - a.score);
@@ -1399,7 +1425,7 @@ function showGameOverModal(winnerPlayer) {
     `<div style="font-weight:900;color:#5c3a21;margin-bottom:6px;">📊 终局积分榜：</div>` +
     sorted.map((p, i) => `
       <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #d4bd96;">
-        <span>${i === 0 ? '🥇' : (i === 1 ? '🥈' : '🥉')} <b>${p.name}</b>（秘密城市：${p.secret.icon}${p.secret.name}）</span>
+        <span>${i === 0 ? '🥇' : (i === 1 ? '🥈' : '🥉')} <b>${p.name}</b>（秘密城市：${p.secret ? p.secret.icon + p.secret.name : '???'}）</span>
         <span style="font-weight:900;color:#8c1d1d;">${p.score} 分</span>
       </div>
     `).join('');
@@ -1414,6 +1440,7 @@ function closeGameOverModal() {
 
 function resetGameSession() {
   if (isHopping) return;
+  isGameOver = false;
   SoundEngine.playClick();
   SoundEngine.startTravelBGM();
   closeRoutePicker();
@@ -1436,7 +1463,7 @@ function resetGameSession() {
     p.node = 'beijing';
     p.score = 0;
     p.tickets = [];
-    p.secret = deck.pop();
+    p.secret = deck.length ? deck.pop() : null;
     p.goalReachedNotified = false;
   });
   for (let i = 0; i < 3; i++) publicTargets.push(deck.pop());
@@ -2634,6 +2661,8 @@ function renderFullBoardCanvas(canvas, geoJsonData = null) {
 
 // ==================== 3. 镜头与视图控制 ====================
 let scene, camera, renderer, boardTopMaterial, proceduralBoardTexture;
+// 每帧高频使用的 DOM/几何引用缓存（避免每帧 getElementById 与 new Vector3 造成 GC 压力）
+let _containerEl = null, _leaderCanvasEl = null, _leaderCtx = null, _projScratch = null;
 const edgeMeshes = {};
 const nodeMeshes = {};
 const reachHaloMeshes = {};
@@ -2652,6 +2681,63 @@ let is2DMode = false;
 let allAIAutoRunning = false; // 当全员为 AI 时，默认不自动开始，需用户手动点击启动
 
 const PAWN_RING_OFFSETS = [[-1.35, -1.25], [1.35, -1.25], [-1.35, 1.25], [1.35, 1.25]];
+const PAWN_REST_Y = 0.46; // 棋子底座高度高于铁轨上表面，杜绝与铁轨穿模
+
+// 专属 3D 骰子投掷区中心坐标（位于左下角西南空旷海域，距最近铁路 >15 单位，彻底远离铁路网且无底座遮挡）
+const DICE_TRAY_CENTER = { x: -23.0, z: 23.5 };
+const DICE_SURFACE_Y = 0.02; // 棋盘表面基准高度（高于 y=0 棋盘面 0.02，杜绝穿模）
+const DICE_HALF_SIZE = 1.15; // 骰子半边长 (2.3 x 2.3 x 2.3)
+
+// 根据每个城市连接的铁路角度，计算完全避开铁轨方向的棋子站位偏移
+function getSafePawnOffset(nodeId, playerIdx) {
+  const city = NODES.find(n => n.id === nodeId);
+  if (!city) return PAWN_RING_OFFSETS[playerIdx] || [0, 0];
+
+  // 收集从该城市出发的所有铁轨的方向角
+  const railAngles = [];
+  EDGES.forEach(e => {
+    const otherId = e.u === nodeId ? e.v : (e.v === nodeId ? e.u : null);
+    if (!otherId) return;
+    const other = NODES.find(n => n.id === otherId);
+    if (other) {
+      railAngles.push(Math.atan2(other.wz - city.wz, other.wx - city.wx));
+    }
+  });
+
+  // 在 16 个候选方位角中挑选与所有铁轨夹角最大的安全扇区
+  const candidates = [];
+  for (let i = 0; i < 16; i++) {
+    const ang = (i / 16) * Math.PI * 2 - Math.PI;
+    let minDiff = Math.PI;
+    railAngles.forEach(ra => {
+      let diff = Math.abs(ang - ra);
+      if (diff > Math.PI) diff = Math.PI * 2 - diff;
+      if (diff < minDiff) minDiff = diff;
+    });
+    candidates.push({ ang, minDiff });
+  }
+  candidates.sort((a, b) => b.minDiff - a.minDiff);
+
+  // 为 4 名玩家选取互不重叠且远离铁轨的 4 个方位角
+  const chosenAngles = [];
+  for (const c of candidates) {
+    if (chosenAngles.every(ca => {
+      let d = Math.abs(c.ang - ca);
+      if (d > Math.PI) d = Math.PI * 2 - d;
+      return d >= 0.95;
+    })) {
+      chosenAngles.push(c.ang);
+      if (chosenAngles.length >= 4) break;
+    }
+  }
+  while (chosenAngles.length < 4) {
+    chosenAngles.push((chosenAngles.length * Math.PI) / 2 + 0.4);
+  }
+
+  const a = chosenAngles[playerIdx % 4];
+  const r = city.isStart ? 1.55 : 1.32;
+  return [Math.cos(a) * r, Math.sin(a) * r];
+}
 
 const camState = {
   theta: 0, phi: 0.78, radius: 78,
@@ -2695,7 +2781,10 @@ function toggle2D3DMode() {
     hint.innerHTML = '🖱️ 左键拖拽平移地图 · 滚轮缩放 · 悬停铁路查看颜色';
     setCameraView(0, 0.001, 90, 0, 1);
     Object.values(playerPawns3D).forEach(pawn => pawn.scale.set(1.25, 0.18, 1.25));
-    diceMeshes.forEach(d => d.scale.set(1, 0.25, 1));
+    diceMeshes.forEach(d => {
+      d.scale.set(1, 0.25, 1);
+      d.position.y = DICE_SURFACE_Y + DICE_HALF_SIZE * 0.25 + 0.03;
+    });
     setHud("🗺️ 已切换为 2D 平面视图");
   } else {
     btn.textContent = '🗺️ 切换 2D 视图';
@@ -2703,7 +2792,10 @@ function toggle2D3DMode() {
     hint.innerHTML = '🖱️ 左键旋转 · 右键平移 · 滚轮缩放 · 悬停铁路查看颜色';
     setCameraView(0, 0.78, 78, 0, 2);
     Object.values(playerPawns3D).forEach(pawn => pawn.scale.set(1, 1, 1));
-    diceMeshes.forEach(d => d.scale.set(1, 1, 1));
+    diceMeshes.forEach(d => {
+      d.scale.set(1, 1, 1);
+      d.position.y = DICE_SURFACE_Y + DICE_HALF_SIZE + 0.03;
+    });
     setHud("🧊 已切换为 3D 沙盘视图");
   }
   sync3DBoardState(false);
@@ -2896,6 +2988,7 @@ function build3DRailsAndStations() {
     lbl.onmouseenter = () => onNodeHover(n.id, true);
     lbl.onmouseleave = () => onNodeHover(n.id, false);
     htmlLabelsContainer.appendChild(lbl);
+    n._labelEl = lbl;
   });
 }
 
@@ -2909,6 +3002,36 @@ function applyEdgeSubtleHighlight(mesh, active) {
     mesh.material.emissive.setHex(0x000000);
     mesh.material.emissiveIntensity = 0;
     mesh.scale.set(1, 1, 1);
+  }
+}
+
+function ensureBeaconPool() {
+  if (targetBeacons.length === 0) {
+    const coneGeo = new THREE.OctahedronGeometry(0.90, 0);
+    const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0x92400e, emissiveIntensity: 0.35, roughness: 0.25, metalness: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+      cone.castShadow = true;
+      cone.visible = false;
+      scene.add(cone);
+      targetBeacons.push(cone);
+    }
+  }
+  if (!secretBeaconMesh) {
+    const grp = new THREE.Group();
+    const gem = new THREE.Mesh(
+      new THREE.OctahedronGeometry(1.0, 0),
+      new THREE.MeshStandardMaterial({ color: 0xd4a373, emissive: 0x7f5539, emissiveIntensity: 0.3, roughness: 0.25, metalness: 0.6 })
+    );
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(1.4, 0.10, 12, 32),
+      new THREE.MeshBasicMaterial({ color: 0xe9c46a })
+    );
+    halo.rotation.x = Math.PI / 2;
+    grp.add(gem, halo);
+    grp.visible = false;
+    scene.add(grp);
+    secretBeaconMesh = grp;
   }
 }
 
@@ -2986,12 +3109,19 @@ function createDieFaceTexture(type) {
 }
 
 function init3DDice() {
+  // 创建两颗 3D 车票木骰子，直接安放在左下角外侧空旷海域（去掉绿色圆底托盘，直接落在棋盘表面）
   const dieMaterials = diceFaceOrder.map(t => new THREE.MeshLambertMaterial({ map: createDieFaceTexture(t) }));
-  const geo = new THREE.BoxGeometry(2.6, 2.6, 2.6);
+  const dieSize = DICE_HALF_SIZE * 2;
+  const geo = new THREE.BoxGeometry(dieSize, dieSize, dieSize);
+  const restY = DICE_SURFACE_Y + DICE_HALF_SIZE + 0.03;
+
   for (let i = 0; i < 2; i++) {
     const mesh = new THREE.Mesh(geo, dieMaterials);
     mesh.castShadow = true;
-    mesh.position.set(-4 + i * 5.5, 1.3, -12);
+    mesh.receiveShadow = true;
+    const slotX = DICE_TRAY_CENTER.x + (i === 0 ? -1.95 : 1.95);
+    const slotZ = DICE_TRAY_CENTER.z + (i === 0 ? -0.35 : 0.35);
+    mesh.position.set(slotX, restY, slotZ);
     scene.add(mesh);
     diceMeshes.push(mesh);
   }
@@ -3010,15 +3140,25 @@ function animate3DDiceThrow(r1, r2, onComplete) {
   const results = [r1, r2];
   activeDiceAnims = diceMeshes.map((mesh, idx) => {
     const targetRot = FACE_UP_ROTATIONS[results[idx]];
+    // 严格限制在左下角骰子托盘内部左右分区起跳与落定，绝不触碰任何铁路且两骰子互不穿模
+    const baseSlotX = DICE_TRAY_CENTER.x + (idx === 0 ? -1.95 : 1.95);
+    const baseSlotZ = DICE_TRAY_CENTER.z + (idx === 0 ? -0.35 : 0.35);
+    const endX = baseSlotX + (Math.random() - 0.5) * 0.45;
+    const endZ = baseSlotZ + (Math.random() - 0.5) * 0.45;
     return {
       mesh,
       startTime: performance.now(),
       duration: 720,
-      startX: -5 + idx * 6,
-      startZ: -11 + (Math.random() - 0.5) * 2,
+      startX: baseSlotX + (idx === 0 ? -0.6 : 0.6),
+      startZ: baseSlotZ + 0.7,
+      endX,
+      endZ,
+      startRotX: mesh.rotation.x,
+      startRotY: mesh.rotation.y,
+      startRotZ: mesh.rotation.z,
       targetRotX: targetRot.x + Math.PI * 4,
       targetRotZ: targetRot.z + Math.PI * 4,
-      targetRotY: Math.random() * Math.PI * 2
+      ySpin: (idx === 0 ? 1 : -1) * Math.PI * 2
     };
   });
   setTimeout(onComplete, 750);
@@ -3210,6 +3350,7 @@ let pendingWilds = 0;
 let hasRolled = false;
 let reachablePaths = {};
 let hoveredPathNodes = [];
+let isGameOver = false; // 终局结算弹窗显示期间为 true，用于阻止「音效试听」劫持的背景乐被误恢复成旅途 BGM
 
 function isEveryPlayerAI() {
   return players.every(p => p.isAI);
@@ -3218,9 +3359,14 @@ function isEveryPlayerAI() {
 function initGame() {
   if (!initWebGLScene()) return;
 
+  _containerEl = document.getElementById('webgl-container');
+  _leaderCanvasEl = document.getElementById('labels-leader-canvas');
+  _leaderCtx = _leaderCanvasEl ? _leaderCanvasEl.getContext('2d') : null;
+  _projScratch = new THREE.Vector3();
+
   deck = NODES.filter(n => !n.isStart).sort(() => Math.random() - 0.5);
   players.forEach(p => {
-    p.secret = deck.pop();
+    p.secret = deck.length ? deck.pop() : null;
     playerPawns3D[p.id] = create3DMeeplePawn(p.color);
   });
   for (let i = 0; i < 3; i++) publicTargets.push(deck.pop());
@@ -3243,7 +3389,7 @@ function addPlayer() {
   const idx = players.length;
   const newP = {
     id: idx, name: `电脑 AI-${idx + 1}`, customName: false, color: palette[idx],
-    node: "beijing", score: 0, tickets: [], secret: deck.pop(), isAI: true
+    node: "beijing", score: 0, tickets: [], secret: deck.length ? deck.pop() : null, isAI: true
   };
   players.push(newP);
   const pawn = create3DMeeplePawn(newP.color);
@@ -3573,9 +3719,9 @@ function executeNodeMove(routeObject, onAllStepsDone) {
     setHud(`🚂 正在行进 (${stepIdx}/${steps.length})：${fromCity.name} ➔ ${toCity.name}`);
     log(`🚂 <b>${p.name}</b> [第${stepIdx}跳] 消耗 [${COLOR_CN[usedColor]}票]：${fromCity.name} ➔ <b>${toCity.icon}${toCity.name}</b>`);
 
-    const [ox, oz] = PAWN_RING_OFFSETS[currentPlayerIdx] || [0, 0];
+    const [ox, oz] = getSafePawnOffset(nextCityId, currentPlayerIdx);
     const pawn = playerPawns3D[p.id];
-    const targetPos = new THREE.Vector3(toCity.wx + ox, 0, toCity.wz + oz);
+    const targetPos = new THREE.Vector3(toCity.wx + ox, PAWN_REST_Y, toCity.wz + oz);
 
     pawnAnimations.push({
       mesh: pawn,
@@ -3785,7 +3931,7 @@ function sync3DBoardState(animateMove = false) {
 
     if (reachHaloMeshes[n.id]) reachHaloMeshes[n.id].visible = isReach;
 
-    const lbl = document.getElementById(`lbl-${n.id}`);
+    const lbl = n._labelEl;
     if (lbl) {
       lbl.className = 'city-label-3d'
         + (n.isStart ? ' is-start' : '')
@@ -3805,47 +3951,38 @@ function sync3DBoardState(animateMove = false) {
     }
   });
 
-  targetBeacons.forEach(b => scene.remove(b));
-  targetBeacons.length = 0;
-  if (!is2DMode) {
-    publicTargets.forEach(t => {
-      const coneGeo = new THREE.OctahedronGeometry(0.90, 0);
-      const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0x92400e, emissiveIntensity: 0.35, roughness: 0.25, metalness: 0.5 });
-      const cone = new THREE.Mesh(coneGeo, coneMat);
+  // 复用固定 3 个目标信标与 1 组秘密信标，只调整位置与可见性（避免每次重建导致 GPU 资源泄漏）
+  ensureBeaconPool();
+  targetBeacons.forEach((cone, i) => {
+    const t = publicTargets[i];
+    if (t && !is2DMode) {
       cone.position.set(t.wx, 3.6, t.wz);
-      cone.castShadow = true;
-      scene.add(cone);
-      targetBeacons.push(cone);
-    });
-  }
+      cone.visible = true;
+    } else {
+      cone.visible = false;
+    }
+  });
 
-  if (secretBeaconMesh) { scene.remove(secretBeaconMesh); secretBeaconMesh = null; }
-  if (secretId && !is2DMode) {
-    const secNode = NODES.find(n => n.id === secretId);
-    if (secNode) {
-      const grp = new THREE.Group();
-      const gem = new THREE.Mesh(
-        new THREE.OctahedronGeometry(1.0, 0),
-        new THREE.MeshStandardMaterial({ color: 0xd4a373, emissive: 0x7f5539, emissiveIntensity: 0.3, roughness: 0.25, metalness: 0.6 })
-      );
-      const halo = new THREE.Mesh(
-        new THREE.TorusGeometry(1.4, 0.10, 12, 32),
-        new THREE.MeshBasicMaterial({ color: 0xe9c46a })
-      );
-      halo.rotation.x = Math.PI / 2;
-      grp.add(gem, halo);
-      grp.position.set(secNode.wx, 4.2, secNode.wz);
-      scene.add(grp);
-      secretBeaconMesh = grp;
+  if (secretBeaconMesh) {
+    if (secretId && !is2DMode) {
+      const secNode = NODES.find(n => n.id === secretId);
+      if (secNode) {
+        secretBeaconMesh.position.set(secNode.wx, 4.2, secNode.wz);
+        secretBeaconMesh.visible = true;
+      } else {
+        secretBeaconMesh.visible = false;
+      }
+    } else {
+      secretBeaconMesh.visible = false;
     }
   }
 
   if (!animateMove && !isHopping) {
     players.forEach((p, idx) => {
       const city = NODES.find(n => n.id === p.node);
-      const [ox, oz] = PAWN_RING_OFFSETS[idx] || [0, 0];
+      const [ox, oz] = getSafePawnOffset(p.node, idx);
       const pawn = playerPawns3D[p.id];
-      if (pawn) pawn.position.set(city.wx + ox, 0, city.wz + oz);
+      if (pawn) pawn.position.set(city.wx + ox, PAWN_REST_Y, city.wz + oz);
     });
   }
 }
@@ -3921,7 +4058,7 @@ function updateSidebar() {
           <span style="color:#8c1d1d;font-size:13.5px;">🏆 ${p.score}/10分</span>
         </div>
         <div style="font-size:11.5px; color:#4a3520; margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-          <span>🔒 秘密终点：${!p.isAI
+          <span>🔒 秘密终点：${(!p.isAI && p.secret)
             ? `<span class="secret-inline-pill" onclick="focusCity('${p.secret.id}')" title="点击在地图中定位">🏠 ${p.secret.icon}${p.secret.name}</span>`
             : '<span style="color:#7f5539;font-weight:bold;">??? (暗牌)</span>'}
           </span>
@@ -3943,11 +4080,33 @@ function animate(now) {
 
   activeDiceAnims.forEach(anim => {
     const t = Math.min(1, (now - anim.startTime) / anim.duration);
-    const jumpY = 1.3 + Math.sin(t * Math.PI) * (is2DMode ? 4 : 14) * (1 - t * 0.3);
-    anim.mesh.position.set(anim.startX, jumpY, anim.startZ);
-    anim.mesh.rotation.x = anim.targetRotX * t;
-    anim.mesh.rotation.z = anim.targetRotZ * t;
-    anim.mesh.rotation.y = anim.targetRotY * (1 - t);
+    const easeOut = 1 - Math.pow(1 - t, 2.2);
+
+    // 先更新三轴旋转角（从当前实际姿态插值到目标姿态，避免第二投从 0 跳变）
+    anim.mesh.rotation.x = anim.startRotX + (anim.targetRotX - anim.startRotX) * easeOut;
+    anim.mesh.rotation.z = anim.startRotZ + (anim.targetRotZ - anim.startRotZ) * easeOut;
+    anim.mesh.rotation.y = anim.startRotY + anim.ySpin * easeOut;
+    anim.mesh.updateMatrix();
+
+    // 根据当前旋转矩阵实时计算立方体最低顶点到中心点的垂直距离，严禁任何边角穿透托盘绒面
+    const e = anim.mesh.matrix.elements;
+    const halfH = is2DMode ? DICE_HALF_SIZE * 0.25 : DICE_HALF_SIZE;
+    const rotatedHalfExtentY = halfH * (Math.abs(e[1]) + Math.abs(e[5]) + Math.abs(e[9]));
+    const minSafeCenterY = DICE_SURFACE_Y + rotatedHalfExtentY + 0.03;
+
+    // 双段物理抛物弹跳包络（主抛跳 + 落地微弹）
+    let bounceH = 0;
+    if (t < 0.76) {
+      const u = t / 0.76;
+      bounceH = Math.sin(u * Math.PI) * (is2DMode ? 3.2 : 11.5);
+    } else if (t < 0.94) {
+      const u = (t - 0.76) / 0.18;
+      bounceH = Math.sin(u * Math.PI) * (is2DMode ? 0.7 : 2.2);
+    }
+
+    const curX = anim.startX + (anim.endX - anim.startX) * easeOut;
+    const curZ = anim.startZ + (anim.endZ - anim.startZ) * easeOut;
+    anim.mesh.position.set(curX, minSafeCenterY + bounceH, curZ);
   });
 
   for (let i = pawnAnimations.length - 1; i >= 0; i--) {
@@ -3955,19 +4114,20 @@ function animate(now) {
     const t = Math.min(1, (now - pa.startTime) / pa.duration);
     const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     pa.mesh.position.lerpVectors(pa.startPos, pa.endPos, ease);
-    pa.mesh.position.y = Math.sin(ease * Math.PI) * (is2DMode ? 1.5 : 5.2);
+    pa.mesh.position.y = PAWN_REST_Y + Math.sin(ease * Math.PI) * (is2DMode ? 1.6 : 5.5);
     if (t >= 1) {
-      pa.mesh.position.y = 0;
+      pa.mesh.position.y = PAWN_REST_Y;
       pawnAnimations.splice(i, 1);
     }
   }
 
   const pulse = 1 + Math.sin(now * 0.006) * 0.15;
   targetBeacons.forEach(b => {
+    if (!b.visible) return;
     b.rotation.y += 0.03;
     b.position.y = 3.5 + Math.sin(now * 0.004) * 0.45;
   });
-  if (secretBeaconMesh) {
+  if (secretBeaconMesh && secretBeaconMesh.visible) {
     secretBeaconMesh.rotation.y -= 0.035;
     secretBeaconMesh.position.y = 4.1 + Math.cos(now * 0.004) * 0.45;
   }
@@ -3975,18 +4135,18 @@ function animate(now) {
     if (ring.visible) ring.scale.set(pulse, pulse, pulse);
   });
 
-  const container = document.getElementById('webgl-container');
+  const container = _containerEl;
   const cw = container.clientWidth;
   const ch = container.clientHeight;
   const halfW = cw / 2;
   const halfH = ch / 2;
 
-  const leaderCanvas = document.getElementById('labels-leader-canvas');
+  const leaderCanvas = _leaderCanvasEl;
   if (leaderCanvas && (leaderCanvas.width !== cw || leaderCanvas.height !== ch)) {
     leaderCanvas.width = cw;
     leaderCanvas.height = ch;
   }
-  const lCtx = leaderCanvas ? leaderCanvas.getContext('2d') : null;
+  const lCtx = _leaderCtx;
   if (lCtx) lCtx.clearRect(0, 0, cw, ch);
 
   if (halfW > 0 && halfH > 0) {
@@ -4004,10 +4164,10 @@ function animate(now) {
     // 1. 计算所有车站的屏幕中心坐标 (sx, sy) 与初始偏移标签位置 (lx, ly)
     const items = [];
     NODES.forEach(n => {
-      const lbl = document.getElementById(`lbl-${n.id}`);
+      const lbl = n._labelEl;
       if (!lbl) return;
 
-      const v = new THREE.Vector3(n.wx, 0.28, n.wz);
+      const v = _projScratch.set(n.wx, 0.28, n.wz);
       v.project(camera);
       if (v.z > 1) {
         lbl.style.display = 'none';
@@ -4145,6 +4305,7 @@ function setHud(html) { document.getElementById('hud-toast').innerHTML = html; }
 function log(html) {
   const el = document.getElementById('game-log');
   el.innerHTML = `<div style="padding:2px 0;border-bottom:1px solid #d4bd96;">${html}</div>` + el.innerHTML;
+  while (el.children.length > 60) el.removeChild(el.lastElementChild);
 }
 
 window.addEventListener('load', initGame);
