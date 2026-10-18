@@ -18,7 +18,7 @@
       --c-purple: #8338ec;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; user-select: none; }
-    body { display: flex; height: 100vh; width: 100vw; background: #1a1410; color: #2c1e14; overflow: hidden; }
+    body { display: flex; height: 100vh; height: 100dvh; width: 100vw; background: #1a1410; color: #2c1e14; overflow: hidden; }
 
     /* 左侧主视口 */
     #webgl-container {
@@ -27,6 +27,8 @@
       background: radial-gradient(circle at 50% 45%, #3d2b1f 0%, #22160f 70%, #120b07 100%);
     }
     #webgl-container canvas { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; display: block; outline: none; z-index: 1; }
+    /* 触控手势由游戏内 pointer 处理器接管（单指旋转/平移、双指捏合缩放），禁止浏览器默认手势干扰 */
+    #webgl-container, #webgl-container canvas { touch-action: none; }
 
     /* 铁轨悬浮信息框 */
     #edge-hover-tooltip {
@@ -464,6 +466,37 @@
       animation: goalPulse 1.6s infinite ease-in-out;
     }
 
+    /* ==================== 移动端完整适配（抽屉侧栏 + 触控手势） ==================== */
+    #btn-sidebar-toggle { display: none; }
+    .sidebar-mobile-close { display: none; }
+    @media (max-width: 900px) {
+      #webgl-container { min-width: 0; }
+      #top-bar { left: 10px; right: 10px; top: 10px; flex-wrap: wrap; gap: 6px; }
+      .cam-group { padding: 4px 8px; gap: 5px; flex-wrap: wrap; }
+      .cam-btn { padding: 4px 8px; font-size: 10.5px; }
+      #mode-hint-text { display: none; }
+      #btn-sidebar-toggle { display: inline-block; }
+      #hud-toast { max-width: 92vw; white-space: normal; text-align: center; font-size: 12px; }
+      #tour-card { width: min(370px, 92vw); }
+      #sidebar {
+        position: fixed; top: 0; right: 0; bottom: 0;
+        width: min(425px, 94vw); z-index: 100;
+        transform: translateX(105%);
+        transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: -12px 0 32px rgba(0, 0, 0, 0.65);
+      }
+      #sidebar.drawer-open { transform: translateX(0); }
+      .sidebar-mobile-close { display: inline-block; }
+      .sidebar-body { padding: 8px; gap: 8px; }
+    }
+    @media (max-width: 900px) and (max-height: 500px) {
+      /* 手机横屏：进一步压缩顶栏与侧栏头部，给沙盘留垂直空间 */
+      .cam-group { padding: 3px 6px; gap: 4px; }
+      .cam-btn { padding: 3px 6px; font-size: 10px; }
+      .sidebar-header { padding: 8px 12px; }
+      .sidebar-header h1 { font-size: 14px; }
+    }
+
   </style>
   <script src="./three.min.js"
           onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';"></script>
@@ -486,6 +519,7 @@
       <span id="mode-hint-text" style="font-size:11px;opacity:0.9;">🖱️ 左键旋转 · 右键平移 · 悬停铁路看颜色</span>
     </div>
     <div class="cam-group">
+      <button class="cam-btn" id="btn-sidebar-toggle" onclick="toggleSidebarDrawer()">☰ 控制面板</button>
       <button class="cam-btn" id="btn-label-mode" onclick="cycleLabelMode()" title="切换城市名称标签显示密度">🏷️ 标签: 智能避让</button>
       <button class="cam-btn" onclick="resetDefaultView()">📐 复位视角</button>
       <button class="cam-btn" onclick="focusSecretCity()">🏠 秘密城市</button>
@@ -517,6 +551,7 @@
     <div class="header-btn-group">
       <button class="header-mini-btn" onclick="openRulesModal('sound')">🔊 音效库</button>
       <button class="header-mini-btn" onclick="resetGameSession()">🔄 重新开局</button>
+      <button class="header-mini-btn sidebar-mobile-close" onclick="toggleSidebarDrawer(false)">✕ 收起面板</button>
     </div>
   </div>
 
@@ -1296,6 +1331,8 @@ function startOnboardingTour(stepIdx = 0) {
   currentTourStep = stepIdx;
   const overlay = document.getElementById('onboarding-overlay');
   overlay.style.display = 'block';
+  // 移动端侧栏是抽屉：引导步骤指向侧栏元素，先展开抽屉再测量定位
+  if (window.matchMedia('(max-width: 900px)').matches) toggleSidebarDrawer(true);
   renderOnboardingStep();
 }
 
@@ -1361,6 +1398,7 @@ function finishOnboardingTour() {
   SoundEngine.unlockAudio();
   SoundEngine.playClick();
   document.getElementById('onboarding-overlay').style.display = 'none';
+  if (window.matchMedia('(max-width: 900px)').matches) toggleSidebarDrawer(false);
   try {
     localStorage.setItem('discover_china_tour_done_v1', '1');
   } catch (e) {}
@@ -2817,6 +2855,14 @@ function resetDefaultView() {
   }
 }
 
+// 移动端：侧栏抽屉开关（宽屏下按钮隐藏，此函数仅移动端可达）
+function toggleSidebarDrawer(forceOpen) {
+  const sb = document.getElementById('sidebar');
+  const open = (typeof forceOpen === 'boolean') ? forceOpen : !sb.classList.contains('drawer-open');
+  sb.classList.toggle('drawer-open', open);
+  SoundEngine.playClick();
+}
+
 // ==================== 4. 构建 WebGL 场景 ====================
 function initWebGLScene() {
   if (typeof THREE === 'undefined') {
@@ -2834,7 +2880,8 @@ function initWebGLScene() {
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const isMobileLayout = window.matchMedia('(max-width: 900px)').matches;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobileLayout ? 1.5 : 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(renderer.domElement);
@@ -2844,8 +2891,8 @@ function initWebGLScene() {
   const dirLight = new THREE.DirectionalLight(0xfffaed, 0.65);
   dirLight.position.set(28, 68, 38);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048;
-  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.mapSize.width = isMobileLayout ? 1024 : 2048;
+  dirLight.shadow.mapSize.height = isMobileLayout ? 1024 : 2048;
   const d = 46;
   dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
   dirLight.shadow.camera.top = d;  dirLight.shadow.camera.bottom = -d;
@@ -3184,30 +3231,64 @@ function bindCanvasEvents(domElement, container) {
   let pointerButton = 0;
   let downPos = { x: 0, y: 0 };
   let lastPos = { x: 0, y: 0 };
+  // 多点触控状态：双指捏合缩放 / 双指平移（单指仍是旋转或平移）
+  const activePointers = new Map();
+  let isPinching = false;
+  let pinchStartDist = 1;
+  let pinchStartRadius = 78;
+  let pinchMidLast = { x: 0, y: 0 };
+  let suppressNextClick = false;
+
+  function panCameraByPixels(dx, dy) {
+    const panSpeed = camState.radius * 0.0012;
+    const cosT = Math.cos(camState.theta), sinT = Math.sin(camState.theta);
+    camState.goalTargetX -= (dx * cosT + dy * sinT) * panSpeed;
+    camState.goalTargetZ -= (-dx * sinT + dy * cosT) * panSpeed;
+    camState.goalTargetX = Math.max(-28, Math.min(28, camState.goalTargetX));
+    camState.goalTargetZ = Math.max(-28, Math.min(28, camState.goalTargetZ));
+  }
 
   domElement.addEventListener('contextmenu', e => e.preventDefault());
 
   domElement.addEventListener('pointerdown', e => {
-    isPointerDown = true;
-    pointerButton = e.button;
-    downPos = { x: e.clientX, y: e.clientY };
-    lastPos = { x: e.clientX, y: e.clientY };
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activePointers.size === 1) {
+      isPointerDown = true;
+      pointerButton = e.button;
+      downPos = { x: e.clientX, y: e.clientY };
+      lastPos = { x: e.clientX, y: e.clientY };
+    } else if (activePointers.size === 2) {
+      // 第二根手指落下：进入捏合模式，忽略单指拖拽并抑制抬手时的误点击
+      isPinching = true;
+      suppressNextClick = true;
+      const pts = [...activePointers.values()];
+      pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      pinchStartRadius = camState.targetRadius;
+      pinchMidLast = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    }
     edgeTipEl.style.display = 'none';
   });
 
   window.addEventListener('pointermove', e => {
+    if (activePointers.has(e.pointerId)) activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (isPinching && activePointers.size >= 2) {
+      const pts = [...activePointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      camState.targetRadius = Math.max(20, Math.min(125, pinchStartRadius * pinchStartDist / Math.max(20, dist)));
+      const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      panCameraByPixels(mid.x - pinchMidLast.x, mid.y - pinchMidLast.y);
+      pinchMidLast = mid;
+      return;
+    }
+
     if (isPointerDown) {
       const dx = e.clientX - lastPos.x;
       const dy = e.clientY - lastPos.y;
       lastPos = { x: e.clientX, y: e.clientY };
 
       if (is2DMode || pointerButton === 2 || e.shiftKey) {
-        const panSpeed = camState.radius * 0.0012;
-        const cosT = Math.cos(camState.theta), sinT = Math.sin(camState.theta);
-        camState.goalTargetX -= (dx * cosT + dy * sinT) * panSpeed;
-        camState.goalTargetZ -= (-dx * sinT + dy * cosT) * panSpeed;
-        camState.goalTargetX = Math.max(-28, Math.min(28, camState.goalTargetX));
-        camState.goalTargetZ = Math.max(-28, Math.min(28, camState.goalTargetZ));
+        panCameraByPixels(dx, dy);
       } else {
         camState.targetTheta -= dx * 0.007;
         camState.targetPhi = Math.max(0.05, Math.min(1.42, camState.targetPhi - dy * 0.006));
@@ -3262,10 +3343,21 @@ function bindCanvasEvents(domElement, container) {
     }
   });
 
-  window.addEventListener('pointerup', e => {
-    if (!isPointerDown) return;
+  function endPointer(e) {
+    const wasTracked = activePointers.has(e.pointerId);
+    activePointers.delete(e.pointerId);
+    if (activePointers.size < 2) isPinching = false;
+    if (wasTracked && activePointers.size === 1) {
+      // 双指收起一指：把剩余手指设为拖拽基准，避免视角跳变
+      const [remain] = activePointers.values();
+      lastPos = { x: remain.x, y: remain.y };
+      downPos = { x: remain.x, y: remain.y };
+    }
+    if (!wasTracked || activePointers.size > 0) return;
     isPointerDown = false;
     if (isHopping || isPickingRoute) return;
+    // 捏合手势结束时不触发城市点击
+    if (suppressNextClick) { suppressNextClick = false; return; }
 
     const moveDist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
     if (moveDist > 6 || pointerButton !== 0) return;
@@ -3289,7 +3381,9 @@ function bindCanvasEvents(domElement, container) {
         onNodeClick(neighborId);
       }
     }
-  });
+  }
+  window.addEventListener('pointerup', endPointer);
+  window.addEventListener('pointercancel', endPointer);
 
   domElement.addEventListener('wheel', e => {
     e.preventDefault();
