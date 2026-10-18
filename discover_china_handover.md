@@ -29,7 +29,7 @@
 
 ## 2. 架构与功能迭代历程（从 2D 原型到 WebGL 真 3D 沙盘）
 
-项目经历了 7 个主要版本的工程演进，逐步解决了状态流转、跨平台零依赖渲染、图论寻路完备性、三维空间交互遮挡以及程序化音效与新手引导问题：
+项目经历了 9 个主要版本的工程演进，逐步解决了状态流转、跨平台零依赖渲染、图论寻路完备性、三维空间交互遮挡、程序化音效、新手引导、城市标签防遮挡及 3D 骰子/棋子防穿模问题：
 
 | 迭代阶段 | 暴露的核心问题 / 需求 | 技术解决方案与架构演进 |
 | :--- | :--- | :--- |
@@ -39,7 +39,9 @@
 | **V4: 多路径枚举与自主选路** | 标准 BFS 只保留第一条最短路径，导致存在多条同距离路径（不同车票颜色组合）或绕路顺道拿分路径时，玩家无法自主选择。 | 将寻路算法从“单最短路”升级为**受限深度无环全路径枚举（All Simple Paths Enumeration）**，按 `(耗票数升序, 顺路得分降序)` 排序。若前往某城市存在 $\ge 2$ 条路径，点击时弹出**多路线选择器**，支持鼠标悬停方案在沙盘中实时预览对应铁轨。 |
 | **V5: 短边防遮挡与铁轨拾取** | 北京—天津等密集区短线路被立体棋子遮挡，看不清底下的铁轨颜色。 | 1. 适度外扩京津、长三角、珠三角密集区节点间距，并将棋子站位改为外扩扇形环绕；<br>2. 为 83 条铁轨包裹半径 `0.95` 的隐形碰撞圆柱纳入 `Raycaster`；<br>3. **鼠标悬停铁轨时**：弹出跟随鼠标的【路线颜色名称浮窗】，铁轨保持自身原色微增约 1 磅（`scale: 1.28`，绝不泛白），且**位于该铁轨两端的棋子自动变为 28% 半透明幽灵态（X-Ray 透视）**。 |
 | **V6: 地图美术与海疆规范** | 早期底图偏白过曝、缺少省界；台湾岛与海南岛曾用简单椭圆代替且过滤了低纬度导致南海诸岛缺失；右上角秘密城市紫粉配色过于艳俗。 | 1. **4096×4096 离屏 Canvas 矢量绘本渲染**：采用 `MeshLambertMaterial` 消除高光过曝，叠加阿里云 DataV 官方 `100000_full.json` 34 省真实测绘省界与分省复古重彩设色，手绘矢量布达拉宫、万里长城、天坛、熊猫、火锅及白边模切地标贴纸；<br>2. **海疆精确测绘**：精确绘制台湾本岛、澎湖、钓鱼岛、雷州半岛、海南本岛（含岛内分区界线与海峡省界）及右下角标准**《南海诸岛》十段线附图框**；<br>3. **UI 克制化**：右侧采用复古羊皮纸与深胡桃木配色，秘密城市卡槽改为克制的古典深木配哑光铜金边框，左右信息框严格等高（`58px`）对齐。 |
-| **V7: 实时合成音效与新手引导** | 缺乏听觉反馈与新玩家上手指引；原生 `alert`/`prompt` 在沙箱或嵌入式容器中易被拦截。 | 1. **Web Audio API 零依赖合成器（`SoundEngine`）**：实时合成国风五声音阶背景音乐（BGM）、木骰翻滚碰撞声、`GO!` 万能票闪烁琶音、高铁双音鸣笛与气流疾驰声、棋子连跳逐级升调落子声、1～4 分目标卡递增得分声、满 10 分达标号角声、以及真人获胜/AI抢先夺冠（失败）专属结算旋律，支持顶部独立开关与内置**音效试听台**；<br>2. **游戏说明弹窗与分步高亮引导（Onboarding Tour）**：首次打开自动触发 5 步聚光灯镂空指引（写入 `localStorage` 记忆状态，并支持随时重播），内置三页签《游戏说明》弹窗，并将改名、终局胜负结算全面替换为古风页内弹窗。 |
+| **V7: 实时合成音效与新手引导** | 缺乏听觉反馈与新玩家上手指引；原生 `alert`/`prompt` 在沙箱或嵌入式容器中易被拦截。 | 1. **Web Audio API 零依赖合成器（`SoundEngine`）**：实时合成国风五声音阶背景音乐（BGM）、木骰翻滚碰撞声、`GO!` 万能票闪烁琶音、高铁双音鸣笛与气流疾驰声、棋子连跳逐级升调落子声、1～4 分目标卡递增得分声、满 10 分达标号角声、以及胜负结算音效，支持顶部独立开关与内置**音效试听台**；<br>2. **游戏说明弹窗与分步高亮引导（Onboarding Tour）**：首次打开自动触发 5 步聚光灯镂空指引，内置三页签《游戏说明》弹窗，并将改名、终局胜负结算全面替换为古风页内弹窗。 |
+| **V8: 终局胜利背景乐与城市标签防遮挡** | 终局仅有一声短促音效，缺乏持续的胜利庆典背景音乐；49 座城市的名称标签直接压在 3D 车站圆盘正上方，遮挡了车站、棋子与密集区邻城。 | 1. **多模态背景音乐切换（`travel` / `victory` / `defeat`）**：终局获胜时先奏响凯旋号角，随后自动无缝切入欢快喜庆的**《山河凯旋曲》持续循环胜利背景音乐（`startVictoryBGM`）**，重开对局时自动恢复旅途背景音乐；<br>2. **城市标签智能避让与引线系统**：为 49 城定制避开地标贴纸与邻城的向外侧偏移向量 `CITY_LABEL_OFFSETS`，每帧执行**屏幕空间车站圆盘禁区推离（Keep-Out Zone）与标签防重叠迭代算法**，通过独立透明 Canvas（`#labels-leader-canvas`）绘制精致指示引线连接标签与车站圆心，并提供顶部 **【🏷️ 标签: 智能避让 / 仅关键城 / 悬停显示】** 三档模式切换。 |
+| **V9: 3D 骰子托盘与全场景防穿模** | 摇骰子时原坐标 `(-5, -11)` 与 `(1, -11)` 正好落在西宁—敦煌、银川—西宁铁路上导致穿模；且旋转中的立方体边角及棋子站位易与铁轨发生穿模。 | 1. **外侧独立 3D 骰子投掷区（无底座遮挡）（`DICE_TRAY_CENTER = {-23.0, 23.5}`）**：将两颗 3D 骰子移至远离全国铁路网的左下角西南空旷海域（距最近铁路 >15 单位），去掉绿色圆底托盘，直接落在棋盘表面独立槽位内起跳与落定；<br>2. **旋转立方体动态包围盒下界钳制（Dynamic Bounding-Box Floor Clamp）**：每帧根据旋转矩阵实时计算立方体最低顶点偏移 $h(|M_{10}|+|M_{11}|+|M_{12}|)$，严格限制骰子中心高度下界，确保翻转与双段弹跳全过程零穿模；<br>3. **棋子铁轨夹角避让（`getSafePawnOffset`）**：动态计算每座城市所有出站铁轨的方位角，自动将棋子安放在与铁轨夹角最大的安全扇区并抬高基准高度 `PAWN_REST_Y = 0.46`。 |
 
 ---
 
@@ -50,41 +52,41 @@
 ### 3.0 实时合成音效引擎与新手引导模块（Section 0 & 0.5）
 
 - `SoundEngine`：基于浏览器原生 `AudioContext` 的程序化音频合成器，无需加载任何外部 `.mp3/.wav` 文件：
-  - `startBGM()` / `stopBGM()`：以中国传统五声音阶（宫商角徵羽 C-D-E-G-A）驱动的古筝/木琴拨弦包络与低音伴奏循环。
+  - `startBGM(modeOverride)` / `stopBGM()`：支持 `'travel'`（正常旅途五声古筝曲）、`'victory'`（《山河凯旋曲》高音区欢快双音和弦庆典背景音乐循环）、`'defeat'`（终局舒缓余韵背景音乐循环）三种背景乐模式。
+  - `startVictoryBGM()` / `startDefeatBGM()` / `startTravelBGM()`：在游戏结束时自动触发号角并切入持续循环的胜利/惜败背景音乐；点击“再来一局”时自动切回旅途背景音。
   - `playDiceRoll()` / `playWildGo()`：模拟双木骰多次弹跳碰撞及 `GO!` 彩虹万能票和弦。
   - `playTrainDepart()`：双振荡器差频模拟高铁风笛（Sawtooth + Lowpass）叠加带通滤波白噪声（Bandpass White Noise）模拟列车出站气流声。
   - `playPawnHop(stepIdx)`：起跳正弦滑音 + 400ms 后木质棋子落盘低频敲击声，且在多站连跳时按 `stepIdx` 阶梯式提升音高。
   - `playScoreGain(scoreVal)` / `playScoreGoalReached()`：按 1～4 分动态扩展琶音阶数；当玩家得分首次从 `<10` 跨越至 `>=10` 时触发达标铜管号角。
-  - `playVictory()` / `playDefeat()`：根据获胜方为真人玩家或 AI 对手，分别演奏凯旋交响或惜败下行旋律。
 - `openRulesModal(defaultTab)` / `switchRulesTab(tabName)`：管理三页签游戏说明弹窗（核心规则、操作技巧、音效试听台）。
 - `startOnboardingTour(stepIdx)` / `renderOnboardingStep()`：基于 DOM `getBoundingClientRect()` 动态计算聚光灯高亮框（`#tour-spotlight`）与说明卡片（`#tour-card`）坐标的 5 步交互式新手引导。
 - `showGameOverModal(winnerPlayer)` / `resetGameSession()`：页内终局积分榜结算面板与无刷新内存状态重置。
 
-### 3.1 静态数据与坐标投影（Section 1）
+### 3.1 静态数据、坐标投影与标签偏移配置（Section 1 & 1.5）
 
-- `NODES`：50 座城市的对象数组，字段包含 `{ id, name, x, y, score, isStart, icon, sticker, stickerOffset, region, wx, wz }`。
+- `NODES`：49 座城市的对象数组，字段包含 `{ id, name, x, y, score, isStart, icon, sticker, stickerOffset, region, wx, wz }`。
 - `EDGES`：83 条铁轨连接数组，字段包含 `{ u, v, color, dashed }`。
-- `mapTo3D(x, y)` / `mapToCanvas(x, y)`：将 `[80..860, 110..940]` 的棋盘平面坐标映射到 Three.js 世界坐标 `[-37..37]` 与 4096×4096 贴图画布坐标。
-- `lngLatToCanvas(lng, lat, provinceName)`：带台湾省、海南省局部锚定校准的经纬度投影函数，确保官方 GeoJSON 省界与 50 座城市坐标严丝合缝。
+- `CITY_LABEL_OFFSETS`：49 座城市的专属屏幕空间初始偏移向量 `[dx, dy]`，避开正上方的 3D 棋子、悬浮晶石与手绘贴纸。
+- `cycleLabelMode()`：在 `smart`（智能避让全显）、`key`（仅显示起点/目标/秘密/可达/玩家所在城）、`hover`（纯净沙盘悬停显示）三档标签模式间一键切换。
 
 ### 3.2 4K 离屏纹理渲染引擎（Section 2）
 
 - `renderFullBoardCanvas(canvas, geoJsonData)`：主渲染入口，依次绘制松石蓝渐变海洋、邻国大陆、中国大陆底板、台湾与海南本岛及岛内分界（`drawTaiwanAndHainanWithProvinceBorders`）、34 省 GeoJSON 分省重彩图斑、沙漠湖泊、森林动物、定制矢量地标（`drawVectorPotala` / `drawVectorBeijingGreatWall` 等）、8 角航海罗盘（`drawOriginalCompass`）及右下角标准《南海诸岛》十段线附图框（`drawStandardSouthChinaSeaInset`）。
 
-### 3.3 WebGL 场景、相机与射线拾取（Section 3 ~ 5）
+### 3.3 WebGL 场景、相机、防穿模骰子盘与射线拾取（Section 3 ~ 5）
 
 - `camState` & `updateCameraPosition()`：手写内联球面坐标阻尼摄像机。
-- `toggle2D3DMode()`：一键切换 2D 平面正射俯视（锁定旋转，左键直接平移，压扁棋子与骰子，隐藏悬浮晶石）与 3D 沙盘视图。
+- `getSafePawnOffset(nodeId, playerIdx)`：自动计算避开当前城市所有铁轨角度的安全站位坐标。
+- `init3DDice()` & `animate3DDiceThrow()`：将两颗 3D 骰子置于左下角外侧空旷海域（无圆底遮挡）并配合双槽位防穿模抛掷动画。
 - `build3DRailsAndStations()`：构建 3D 车站圆台、彩色圆柱铁轨、木枕木以及半径 `0.95` 的透明铁轨拾取碰撞盒（`userData.isEdge = true`）。
-- `applyEdgeSubtleHighlight(mesh, active)`：控制铁轨悬停或路径预览时保持自身原色微增 28%（约 1pt），绝不泛白。
 - `setPawnsGhostMode(uId, vId)`：当鼠标悬停在某段铁轨上时，将该铁轨两端城市的棋子透明度设为 `0.28` 以防遮挡。
 
-### 3.4 游戏状态机与全路径寻路算法（Section 6 ~ 7）
+### 3.4 游戏状态机、寻路算法与标签防遮挡渲染循环（Section 6 ~ 7）
 
 - `computeReachable(startNode, tickets)`：受限深度无环全路径枚举算法，返回每个可达城市的所有合法路线方案及途经得分统计。
 - `openRoutePicker(targetNodeId, routes)`：当存在多条可行路线时弹出方案选择框，支持悬停实时预览。
 - `executeNodeMove(routeObject, onAllStepsDone)`：逐城分步跳跃状态机，处理单步车票扣减、抛物线插值动画、途经公共目标即时拿分、10 分达标号角与回家胜利判定。
-- `editPlayerName(idx)` / `toggleAI(idx)` / `toggleAllAIAutoRun()`：处理玩家自定义改名、真人/AI 身份切换以及全员 AI 时的暂停保护与手动启停。
+- `animate(now)`：主渲染循环，更新 3D 相机、旋转矩阵顶点下界钳制的 3D 骰子动画、棋子跳跃与信标动画，并每帧对 49 座城市标签执行**车站圆盘禁区推离（`stationKeepOutR = 14px`）与标签碰撞斥力迭代**。
 
 ---
 
@@ -100,7 +102,7 @@
 git init
 cp discover_china_3d.html index.html
 git add index.html discover_china_3d.html discover_china_handover.md
-git commit -m "feat: add Web Audio synthesizer, onboarding tour, and rules modal"
+git commit -m "fix: add 3D wooden dice tray and dynamic bounding-box floor clamp to prevent rail clipping"
 git branch -M main
 git remote add origin https://github.com/<你的GitHub用户名>/<你的仓库名>.git
 git push -u origin main
@@ -111,3 +113,26 @@ git push -u origin main
 1. 在 GitHub 新建仓库后，点击页面上的 **Add file ➔ Upload files**。
 2. 将 `discover_china_3d.html`（可重命名为 `index.html`）与 `discover_china_handover.md` 直接拖入浏览器窗口，点击 **Commit changes** 即可完成上传。
 3. 进入仓库 **Settings ➔ Pages**，在 **Build and deployment** 下选择 `Deploy from a branch`（分支选 `main` / `/ (root)`），保存后约 1 分钟即可获得可公开分享的在线游玩链接。
+
+---
+
+## v1.4 演进（2026-10-18：代码审核修复 + 移动端完整适配）
+
+v1.4 在 v1.3 基础上经历一轮完整代码审核与五轮迭代修复，全部已推送 `main` 并上线 GitHub Pages。
+
+**审核修复（P0 Bug）**
+- BGM 试听劫持：`SoundEngine` 内部 `bgmEpoch` 计数作废迟到的延迟启动；试听台打开时暂停背景乐，切页签/关弹窗恢复（终局恢复原胜负背景乐）
+- 3D 骰子二次投掷跳变：动画改为从 `startRotX/Z` 插值；Y 轴 `ySpin` 整圈翻滚、落点姿态不变
+- 信标显存泄漏：`ensureBeaconPool()` 固定网格池复用，`sync3DBoardState` 只改位置与可见性
+- 牌库抽空保护：发牌判空，结算面板/侧栏对 `secret=null` 安全
+
+**性能与兼容**：每帧 52 次 DOM 查找与 50 次向量分配缓存（`n._labelEl` / `_projScratch`）；旅程日志截断 60 条；`roundRect` polyfill（iOS<16 防黑盘）；`-webkit-backdrop-filter` 前缀；og 分享元数据 + emoji favicon；`three.min.js` r128 本地化（cdnjs 自动回退）
+
+**移动端完整适配（≤900px）**
+- 侧栏抽屉化：☰ 汉堡开关 + 屏幕右缘常驻 ❯ 收起箭头 + 点击棋盘遮罩收起；「✕ 收起面板」sticky 置顶
+- 触控手势：单指拖拽=旋转（2D 平移）、**双指张开=拉近（放大）/ 收拢=拉远（缩小）**（缩放范围 14~125）、双指拖动=平移；捏合需位移阈值激活，防两指先后落下误判旋转；双指收起一指后剩余手指无缝续拖
+- 底部常驻快捷操作栏：投骰 / 结束回合 / GO 换票，状态与抽屉内按钮实时同步，免开抽屉
+- 横竖屏自适应（横屏高 ≤500px 再压缩）、新手引导联动抽屉开/关、`100dvh`（iOS 地址栏）
+- 渲染减负：pixelRatio ≤1.25、手机端关闭阴影（桌面不变）
+
+**验证方式**：`node --check` + 本地 `python3 -m http.server` + 无头浏览器多视口冒烟（390×844 / 844×390 / 1280×720）、合成 PointerEvent 手势模拟、线上 curl 确认部署。详见 `code_review_2026-10-18.md`（桌面归档，共十二节）。
