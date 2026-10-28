@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="3D 桌游《山河之旅》网页版：掷骰攒车票游历中国 49 座名城，凑满 10 分回到秘密城市夺冠！支持多人同屏与 AI 托管。">
+  <meta name="description" content="3D 桌游《山河之旅》网页版：掷骰攒车票游历中国 49 座名城，凑满 10 分回到秘密城市夺冠！支持本地多人、AI 托管与在线 P2P 房间联机。">
   <meta property="og:title" content="山河之旅 Discover China">
-  <meta property="og:description" content="掷骰攒车票游历中国名城，凑满10分回到秘密城市夺冠！支持多人同屏与 AI 托管。">
+  <meta property="og:description" content="掷骰攒车票游历中国名城，凑满10分回到秘密城市夺冠！支持本地多人、AI 托管与在线 P2P 房间联机。">
   <meta property="og:type" content="website">
   <link rel="icon" href="data:image/emoji,🚂">
   <title>山河之旅 (Discover China)</title>
@@ -534,6 +534,105 @@
       #quick-action-bar .cam-btn { flex: 1; padding: 11px 6px; font-size: 12.5px; }
     }
 
+    /* ==================== 大厅 / 在线多人 ==================== */
+    #lobby-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 30%, #3d2b1f 0%, #22160f 70%, #120b07 100%);
+      padding: 16px;
+    }
+    #lobby-overlay.hidden { display: none; }
+    .lobby-card {
+      width: 640px; max-width: 96vw; max-height: 92vh; overflow-y: auto;
+      background: linear-gradient(160deg, #f4ead5, #e8d7b8);
+      border-radius: 16px; border: 3px solid #8c6239;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.8);
+      display: flex; flex-direction: column;
+    }
+    .lobby-tabs { display: flex; background: #3b281e; border-radius: 12px 12px 0 0; border-bottom: 2px solid #b08d57; }
+    .lobby-tab {
+      flex: 1; padding: 13px 10px; background: none; border: none; color: #c9b18c;
+      font-size: 14px; font-weight: 800; cursor: pointer; letter-spacing: 1px;
+    }
+    .lobby-tab.active { color: #fde68a; background: rgba(255,255,255,0.06); box-shadow: inset 0 -3px 0 #e9c46a; }
+    .lobby-body { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 14px; }
+    .lobby-title { font-size: 18px; font-weight: 900; color: #3b281e; }
+    .lobby-sub { font-size: 12px; color: #6b4f32; margin-top: 2px; line-height: 1.5; }
+    .lobby-section-label { font-size: 12px; font-weight: 900; color: #6b4f32; margin-top: 4px; }
+    .count-grid { display: flex; gap: 10px; }
+    .count-btn {
+      flex: 1; padding: 11px 8px; border-radius: 10px; border: 2px solid #c9b18c;
+      background: #fff8ec; color: #3b281e; font-size: 14px; font-weight: 900; cursor: pointer;
+    }
+    .count-btn.active { border-color: #8c1d1d; background: #8c1d1d; color: #fff; }
+    .lobby-input {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 2px solid #c9b18c;
+      background: #fffaf0; color: #2c1e14; font-size: 14px; outline: none;
+    }
+    .lobby-input:focus { border-color: #8c6239; }
+    .lobby-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .lobby-btn {
+      flex: 1; min-width: 120px; padding: 12px 10px; border-radius: 12px; border: none;
+      font-size: 14px; font-weight: 900; cursor: pointer; color: #fff; background: #8c1d1d;
+      box-shadow: 0 3px 0 #5c1212;
+    }
+    .lobby-btn.secondary { background: #5c3a21; box-shadow: 0 3px 0 #3b281e; }
+    .lobby-btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .lobby-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+    .room-code-box {
+      text-align: center; padding: 14px; border-radius: 12px;
+      background: #3b281e; color: #fde68a; font-size: 30px; font-weight: 900; letter-spacing: 6px;
+      border: 2px dashed #b08d57; user-select: all;
+    }
+    .lobby-seats { display: flex; flex-direction: column; gap: 8px; }
+    .lobby-seat-row {
+      display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+      border-radius: 10px; background: #fff8ec; border: 1.5px solid #e0cba4;
+    }
+    .lobby-seat-row.self { border-color: #8c6239; background: #fdf0d5; }
+    .lobby-seat-num {
+      width: 26px; height: 26px; border-radius: 50%; background: #8c6239; color: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; flex-shrink: 0;
+    }
+    .lobby-seat-name { flex: 1; font-size: 13.5px; font-weight: 800; color: #3b281e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lobby-seat-status { font-size: 11.5px; font-weight: 800; color: #8c1d1d; }
+    .lobby-seat-row.online .lobby-seat-status { color: #2d6a4f; }
+    .invite-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .invite-row .lobby-input { flex: 1; min-width: 180px; font-size: 12px; }
+    .route-switch-row { display: flex; gap: 8px; align-items: center; }
+    .route-switch-row .route-btn {
+      padding: 7px 12px; border-radius: 8px; border: 1.5px solid #c9b18c; background: #fff8ec;
+      font-size: 12px; font-weight: 800; color: #6b4f32; cursor: pointer;
+    }
+    .route-switch-row .route-btn.active { background: #2d6a4f; border-color: #2d6a4f; color: #fff; }
+    .lobby-note { font-size: 11px; color: #6b4f32; line-height: 1.6; }
+    .lobby-link { color: #8c1d1d; font-weight: 800; cursor: pointer; text-decoration: underline; }
+    /* 游戏中房间状态条 */
+    #net-room-bar {
+      display: none; flex-direction: column; gap: 6px; padding: 10px 12px;
+      background: linear-gradient(135deg, #3b281e, #2c1a12); border-radius: 12px;
+      border: 1.5px solid #b08d57; color: #f4ece1;
+    }
+    #net-room-bar .nr-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #net-room-bar .nr-code { font-size: 16px; font-weight: 900; letter-spacing: 3px; color: #fde68a; }
+    #net-room-bar .nr-status { font-size: 11px; color: #c9b18c; }
+    #net-room-bar .nr-seats { display: flex; flex-wrap: wrap; gap: 4px; }
+    #net-room-bar .nr-seat-chip {
+      font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(242,226,196,0.3);
+    }
+    #net-room-bar .nr-seat-chip.on { background: #2d6a4f; border-color: #6a994e; }
+    #net-room-bar .nr-seat-chip.you { border-color: #fde68a; color: #fde68a; }
+    .nr-leave-btn {
+      background: none; border: 1px solid rgba(242,226,196,0.35); color: #e8d7b8;
+      font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 8px; cursor: pointer;
+    }
+    .nr-leave-btn:hover { background: #8c1d1d; border-color: #8c1d1d; }
+    .online-dot-sm { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #7f5539; margin-right: 4px; }
+    .online-dot-sm.on { background: #6a994e; box-shadow: 0 0 6px #6a994e; }
+    /* 在线模式下玩家卡片暗牌样式 */
+    .player-card.online-remote .player-name-editable { cursor: default; }
+    .player-card.online-remote .role-badge { pointer-events: none; opacity: 0.75; }
   </style>
   <script src="./three.min.js"
           onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';"></script>
@@ -603,6 +702,16 @@
   </div>
 
   <div class="sidebar-body">
+    <!-- 0. 在线房间状态条（仅多人模式显示） -->
+    <div id="net-room-bar">
+      <div class="nr-top">
+        <span class="nr-code" id="nr-room-code">——</span>
+        <span class="nr-status" id="nr-room-status">未连接</span>
+        <button class="nr-leave-btn" onclick="netLeaveRoom()">🚪 离开</button>
+      </div>
+      <div class="nr-seats" id="nr-room-seats"></div>
+    </div>
+
     <!-- 1. 秘密回家城市卡槽（左右色块等高 58px） -->
     <div id="secret-hero-box" onclick="focusSecretCity()" title="点击在地图中定位秘密城市">
       <div class="secret-header-bar">
@@ -661,8 +770,8 @@
     <!-- 4. 玩家状态与车票架 -->
     <div class="box" id="players-status-box">
       <div class="box-title">
-        <span>👥 玩家列表 (点击名字可改名 · 点击标签切换AI)</span>
-        <button onclick="addPlayer()" style="border:1px solid #7f5539; background:#f7efde; color:#4a3525; border-radius:4px; padding:1px 6px; font-size:10.5px; cursor:pointer; font-weight:bold;">+ 添加玩家</button>
+        <span id="players-box-title">👥 玩家列表 (点击名字可改名 · 点击标签切换AI)</span>
+        <button id="btn-add-player" onclick="addPlayer()" style="border:1px solid #7f5539; background:#f7efde; color:#4a3525; border-radius:4px; padding:1px 6px; font-size:10.5px; cursor:pointer; font-weight:bold;">+ 添加玩家</button>
       </div>
       <div id="players-container"></div>
     </div>
@@ -839,6 +948,17 @@
       <button class="tour-btn" id="tour-prev-btn" onclick="stepOnboardingTour(-1)">⬅ 上一步</button>
       <button class="tour-btn primary" id="tour-next-btn" onclick="stepOnboardingTour(1)">下一步 ➔</button>
     </div>
+  </div>
+</div>
+
+<!-- 🏠 开始大厅 / 在线多人房间 -->
+<div id="lobby-overlay">
+  <div class="lobby-card">
+    <div class="lobby-tabs">
+      <button class="lobby-tab active" id="lobby-tab-local" onclick="switchLobbyTab('local')">🏠 本地游戏</button>
+      <button class="lobby-tab" id="lobby-tab-online" onclick="switchLobbyTab('online')">🌐 在线多人</button>
+    </div>
+    <div class="lobby-body" id="lobby-body"></div>
   </div>
 </div>
 
@@ -1533,6 +1653,16 @@ function closeGameOverModal() {
 
 function resetGameSession() {
   if (isHopping) return;
+  // 在线模式：重新开局由房主权威执行并广播
+  if (net.enabled) {
+    closeGameOverModal();
+    if (net.isHost) {
+      restartOnlineGame();
+    } else if (net.connected && net.joined && hostPeerId) {
+      transport.sendTo(hostPeerId, { kind: 'action', action: { type: 'RESTART' } });
+    }
+    return;
+  }
   isGameOver = false;
   SoundEngine.playClick();
   SoundEngine.startTravelBGM();
@@ -3495,7 +3625,9 @@ function focusCurrentPlayer() {
 }
 
 function focusSecretCity() {
-  const humanP = players.find(p => !p.isAI) || players[0];
+  const humanP = net.enabled
+    ? (players[Math.max(0, Math.min(players.length - 1, net.seat ?? 0))] || players[0])
+    : (players.find(p => !p.isAI) || players[0]);
   if (humanP && humanP.secret) {
     focusCity(humanP.secret.id);
     setHud(`🏠 已聚焦秘密回家城市：【${humanP.secret.icon}${humanP.secret.name}】`);
@@ -3521,9 +3653,11 @@ function isEveryPlayerAI() {
   return players.every(p => p.isAI);
 }
 
-function initGame() {
-  if (!initWebGLScene()) return;
-
+// 初始化 3D 场景（幂等：只创建一次，后续复用）
+let _sceneReady = false;
+function initScene() {
+  if (_sceneReady) return true;
+  if (!initWebGLScene()) return false;
   _containerEl = document.getElementById('webgl-container');
   _leaderCanvasEl = document.getElementById('labels-leader-canvas');
   _leaderCtx = _leaderCanvasEl ? _leaderCanvasEl.getContext('2d') : null;
@@ -3534,7 +3668,42 @@ function initGame() {
     if (e.target.id === 'sidebar' && window.matchMedia('(max-width: 900px)').matches) toggleSidebarDrawer(false);
   });
 
+  _sceneReady = true;
+  requestAnimationFrame(animate);
+  return true;
+}
+
+// 清空所有 3D 棋子（更换玩家阵容时避免旧棋子残留在场景中）
+function clearAllPawns() {
+  Object.keys(playerPawns3D).forEach(k => {
+    const mesh = playerPawns3D[k];
+    if (mesh && scene) scene.remove(mesh);
+    delete playerPawns3D[k];
+  });
+}
+
+function initGame() {
+  if (!initScene()) return;
+  clearAllPawns();
+
+  // 全新开局：重置所有回合/终局状态（原版仅在页面加载时调用一次，现支持大厅反复开局）
+  isGameOver = false;
+  winnerIdx = null;
+  hasRolled = false;
+  pendingWilds = 0;
+  currentPlayerIdx = 0;
+  reachablePaths = {};
+  hoveredPathNodes = [];
+  allAIAutoRunning = false;
+  lastDice = null;
+  lastMove = null;
+  document.getElementById('wild-modal').style.display = 'none';
+  document.getElementById('dice-result-badge').textContent = '等待投掷骰子';
+  document.getElementById('btn-end').disabled = true;
+  document.getElementById('btn-end').classList.remove('must-click');
+
   deck = NODES.filter(n => !n.isStart).sort(() => Math.random() - 0.5);
+  publicTargets = [];
   players.forEach(p => {
     p.secret = deck.length ? deck.pop() : null;
     playerPawns3D[p.id] = create3DMeeplePawn(p.color);
@@ -3545,8 +3714,7 @@ function initGame() {
   updateSidebar();
   setHud("🎲 欢迎来到《山河之旅》，请点击右侧【投掷车票骰子】开始旅程");
   log("🎉 游戏开始！所有玩家从【北京】出发，先凑齐 10 分并返回秘密城市的玩家获胜。");
-  requestAnimationFrame(animate);
-  checkFirstTimeOnboarding();
+  if (!net.enabled) checkFirstTimeOnboarding();
 }
 
 function addPlayer() {
@@ -3571,11 +3739,13 @@ function addPlayer() {
 
 // 点击玩家名称手动修改昵称（使用页内弹窗替代原生 prompt）
 function editPlayerName(idx) {
+  if (net.enabled) return; // 在线模式昵称由玩家自己设置
   openNameModal(idx);
 }
 
 // 切换真人与 AI（若切换后全员均为 AI，绝不自动开跑，等待手动点击启动）
 function toggleAI(idx) {
+  if (net.enabled) return; // 在线模式座位均为真人
   if (isHopping || isPickingRoute) return;
   const p = players[idx];
   p.isAI = !p.isAI;
@@ -3692,6 +3862,7 @@ function getGraphDistance(startId, targetId) {
 }
 
 function rollDice() {
+  if (net.enabled) { sendAction({ type: 'ROLL' }); return; } // 在线模式：发送给房主校验
   if (hasRolled || isHopping || isPickingRoute) return;
   hasRolled = true;
   document.getElementById('btn-roll').disabled = true;
@@ -3738,6 +3909,7 @@ function rollDice() {
 }
 
 function pickWild(color) {
+  if (net.enabled) { sendAction({ type: 'PICK_WILD', color }); return; } // 在线模式：发送给房主校验
   if (pendingWilds <= 0) return;
   currentlyWildColor = color;
   SoundEngine.playWildGo();
@@ -3833,6 +4005,11 @@ function confirmRouteOption(routeIdx) {
   if (!routes || !routes[routeIdx]) return;
   const chosenRoute = routes[routeIdx];
   closeRoutePicker();
+  if (net.enabled) {
+    // 在线模式：把选中的路线发给房主校验并广播
+    sendAction({ type: 'MOVE', route: { pathNodes: chosenRoute.pathNodes.slice(), tickets: chosenRoute.tickets.slice() } });
+    return;
+  }
   startStepByStepHop(chosenRoute);
 }
 
@@ -3967,6 +4144,7 @@ function startStepByStepHop(chosenRoute) {
 }
 
 function onNodeClick(nodeId) {
+  if (net.enabled && currentPlayerIdx !== net.seat) return; // 在线模式：非当前玩家不能操作
   const p = players[currentPlayerIdx];
   if (p.isAI || !hasRolled || pendingWilds > 0 || isHopping || isPickingRoute) return;
   const routes = reachablePaths[nodeId];
@@ -3982,6 +4160,10 @@ function onNodeClick(nodeId) {
 function onNodeHover(nodeId, isEnter) {
   currentlyHoveredNodeId = isEnter ? nodeId : null;
   if (isHopping || isPickingRoute) return;
+  if (net.enabled && currentPlayerIdx !== net.seat) { // 在线模式：非当前玩家不预览路线
+    if (hoveredPathNodes.length > 0) { hoveredPathNodes = []; highlightHoveredEdges3D(); }
+    return;
+  }
   const p = players[currentPlayerIdx];
   const routes = nodeId ? reachablePaths[nodeId] : null;
   if (p.isAI || !hasRolled || !routes || routes.length === 0) {
@@ -4059,6 +4241,7 @@ function aiExecuteMove() {
 }
 
 function endTurn() {
+  if (net.enabled) { sendAction({ type: 'END_TURN' }); return; } // 在线模式：发送给房主校验
   if (isHopping || isPickingRoute) return;
   hasRolled = false;
   reachablePaths = {};
@@ -4091,7 +4274,9 @@ function endTurn() {
 function sync3DBoardState(animateMove = false) {
   const activeP = players[currentPlayerIdx];
   const isHumanTurn = !activeP.isAI;
-  const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+  const humanViewer = net.enabled
+    ? (players[Math.max(0, Math.min(players.length - 1, net.seat ?? 0))] || players[0])
+    : (!activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]));
   const secretId = humanViewer && humanViewer.secret ? humanViewer.secret.id : null;
 
   NODES.forEach(n => {
@@ -4163,6 +4348,8 @@ function updateSidebar() {
   const activeP = players[currentPlayerIdx];
   document.getElementById('active-player-banner').textContent = `当前行动：${activeP.name}`;
 
+  const isMyTurn = !net.enabled || currentPlayerIdx === net.seat; // 在线模式只有当前座位可操作
+
   // 控制全员 AI 时的手动启停按钮显隐
   const aiCtrlBtn = document.getElementById('btn-ai-autorun');
   const rollBtn = document.getElementById('btn-roll');
@@ -4182,10 +4369,19 @@ function updateSidebar() {
     aiCtrlBtn.style.display = 'none';
     rollBtn.style.display = 'block';
     endBtn.style.display = 'block';
-    rollBtn.disabled = activeP.isAI || hasRolled || isHopping;
+    rollBtn.disabled = !(isMyTurn && !activeP.isAI && !hasRolled && !isHopping && !isPickingRoute);
+    endBtn.disabled = !(isMyTurn && !activeP.isAI && hasRolled && !isHopping && !isPickingRoute && pendingWilds === 0);
+    const reachCount = Object.keys(reachablePaths).length;
+    if (isMyTurn && !activeP.isAI && hasRolled && pendingWilds === 0 && reachCount === 0 && !isHopping) {
+      endBtn.classList.add('must-click');
+    } else {
+      endBtn.classList.remove('must-click');
+    }
   }
 
-  const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+  const humanViewer = net.enabled
+    ? (players[Math.max(0, Math.min(players.length - 1, net.seat ?? 0))] || players[0])
+    : (!activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]));
   if (humanViewer && humanViewer.secret) {
     const sec = humanViewer.secret;
     const dist = getGraphDistance(humanViewer.node, sec.id);
@@ -4214,21 +4410,30 @@ function updateSidebar() {
     </div>
   `).join('');
 
+  const isRemote = net.enabled; // 在线模式：远程座位不可本地编辑
+  const playersTitleEl = document.getElementById('players-box-title');
+  const btnAddPlayerEl = document.getElementById('btn-add-player');
+  if (playersTitleEl) playersTitleEl.textContent = isRemote ? '👥 玩家列表' : '👥 玩家列表 (点击名字可改名 · 点击标签切换AI)';
+  if (btnAddPlayerEl) btnAddPlayerEl.style.display = isRemote ? 'none' : 'inline-block';
   document.getElementById('players-container').innerHTML = players.map((p, idx) => {    const loc = NODES.find(n => n.id === p.node);
     const isAct = idx === currentPlayerIdx;
+    const showSecret = !isRemote || idx === net.seat; // 在线模式只显示自己的秘密城市
+    const cardCls = 'player-card ' + (isAct ? 'active-turn' : '') + (isRemote && idx !== net.seat ? ' online-remote' : '');
     return `
-      <div class="player-card ${isAct ? 'active-turn' : ''}">
+      <div class="${cardCls}">
         <div class="p-top">
           <span>
             <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:4px;"></span>
-            <span class="player-name-editable" onclick="editPlayerName(${idx})" title="点击修改玩家名称">${p.name} ✏️</span>
+            ${isRemote && idx !== net.seat
+              ? `<span class="player-name-editable">${p.name}</span>`
+              : `<span class="player-name-editable" onclick="editPlayerName(${idx})" title="点击修改玩家名称">${p.name} ✏️</span>`}
             <span style="font-weight:normal;color:#5c3a21;">@ ${loc.icon}${loc.name}</span>
-            <span class="role-badge ${p.isAI ? 'is-ai' : ''}" onclick="toggleAI(${idx})" title="点击切换真人或AI">${p.isAI ? '🤖 AI' : '👤 真人'}</span>
+            <span class="role-badge ${p.isAI ? 'is-ai' : ''}" ${isRemote ? '' : `onclick="toggleAI(${idx})" title="点击切换真人或AI"`}>${p.isAI ? '🤖 AI' : '👤 真人'}</span>
           </span>
           <span style="color:#8c1d1d;font-size:13.5px;">🏆 ${p.score}/10分</span>
         </div>
         <div style="font-size:11.5px; color:#4a3520; margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
-          <span>🔒 秘密终点：${(!p.isAI && p.secret)
+          <span>🔒 秘密终点：${(showSecret && p.secret)
             ? `<span class="secret-inline-pill" onclick="focusCity('${p.secret.id}')" title="点击在地图中定位">🏠 ${p.secret.icon}${p.secret.name}</span>`
             : '<span style="color:#7f5539;font-weight:bold;">??? (暗牌)</span>'}
           </span>
@@ -4251,12 +4456,14 @@ function updateSidebar() {
     qaBar.style.visibility = drawerOpen ? 'hidden' : 'visible';
     qaBar.style.pointerEvents = drawerOpen ? 'none' : 'auto'; // 彻底禁用点击，防止半透明元素意外拦截缩放/旋转手势
   }
-  if (qaRoll) qaRoll.disabled = !(!activeP.isAI && !hasRolled && !isHopping && !isPickingRoute);
-  if (qaEnd) qaEnd.disabled = !(!activeP.isAI && hasRolled && !isHopping && !isPickingRoute);
+  if (qaRoll) qaRoll.disabled = !(isMyTurn && !activeP.isAI && !hasRolled && !isHopping && !isPickingRoute);
+  if (qaEnd) qaEnd.disabled = !(isMyTurn && !activeP.isAI && hasRolled && !isHopping && !isPickingRoute && pendingWilds === 0);
   if (qaWild) {
     qaWild.disabled = pendingWilds <= 0;
     qaWild.textContent = pendingWilds > 0 ? `🌈 GO!换票（剩${pendingWilds}张，当前${COLOR_CN[currentlyWildColor || 'red']}）` : '🌈 GO换票';
   }
+
+  updateNetRoomBar();
 }
 
 // ==================== 7. 主渲染循环 ====================
@@ -4338,7 +4545,9 @@ function animate(now) {
 
   if (halfW > 0 && halfH > 0) {
     const activeP = players[currentPlayerIdx];
-    const humanViewer = !activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]);
+    const humanViewer = net.enabled
+      ? (players[Math.max(0, Math.min(players.length - 1, net.seat ?? 0))] || players[0])
+      : (!activeP.isAI ? activeP : (players.find(p => !p.isAI) || players[0]));
     const secretId = humanViewer && humanViewer.secret ? humanViewer.secret.id : null;
     const occupiedNodes = new Set(players.map(p => p.node));
 
@@ -4495,7 +4704,997 @@ function log(html) {
   while (el.children.length > 60) el.removeChild(el.lastElementChild);
 }
 
-window.addEventListener('load', initGame);
+// ==================== 8. 在线多人（P2P 房间，房主权威） ====================
+// 参考 smallFarm 的房间方案：WebRTC P2P（Trystero / webConnect 双路线，免服务器），
+// 房主浏览器是唯一权威，访客把操作发给房主，房主校验后广播新状态。
+const NET_APP_NAME = 'discover-china';
+const NET_APP_PASSWORD = 'discover-china';
+const NET_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const NET_HOST_KEY = 'discover-china-host-v1';
+const NET_NAME_KEY = 'discover-china-name';
+const NET_P2P_DEFAULT = 'auto'; // 'webconnect' | 'trystero' | 'auto'
+const NET_TRYSTERO_URLS = [
+  'https://esm.sh/trystero@0.26.0',
+  'https://cdn.jsdelivr.net/npm/trystero@0.26.0/+esm'
+];
+const NET_WEBCONNECT_URL = 'https://cdn.jsdelivr.net/npm/webconnect/dist/umd/webconnect.js';
+
+// 在线状态（渲染模块也会读取）
+let net = {
+  enabled: false,     // 是否处于在线多人模式
+  isHost: false,      // 是否房主（权威）
+  connecting: false,  // 正在连接
+  connected: false,   // P2P 房间已连接
+  joined: false,     // 已获得座位确认
+  room: null,         // 房间号
+  seat: null,         // 座位 0–3
+  token: null,        // 座位令牌
+  name: '',           // 玩家名字
+  seats: [],          // [{seat,name,online,self,peerId}]
+  count: 2,           // 房间人数
+  lib: null           // 当前 P2P 传输：'webconnect' | 'trystero'
+};
+let transport = null;    // 当前传输层 {name,selfId,sendTo,broadcast,leave}
+let hostPeerId = null;     // 房主的 peerId（访客视角）
+let lobbyTab = 'local';   // 大厅标签：'local' | 'online'
+let localCount = 2;        // 本地/房间人数
+let localNames = ['', '', '', '']; // 本地玩家名
+let lastDice = null;     // 最近一次骰子结果（用于广播后本地播放动画）
+let lastMove = null;     // 最近一次移动（用于广播后本地播放棋子动画）
+let winnerIdx = null;   // 终局胜者下标
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- 游戏状态序列化 / 应用 / 脱敏 ----------
+function serializeGameState() {
+  return {
+    players: players.map(p => ({
+      id: p.id, name: p.name, customName: !!p.customName, color: p.color, node: p.node,
+      score: p.score, tickets: p.tickets.slice(), secret: p.secret ? Object.assign({}, p.secret) : null,
+      isAI: !!p.isAI, goalReachedNotified: !!p.goalReachedNotified
+    })),
+    currentPlayerIdx,
+    deck: deck.map(c => Object.assign({}, c)),
+    publicTargets: publicTargets.map(c => Object.assign({}, c)),
+    pendingWilds, hasRolled, isGameOver, currentlyWildColor,
+    lastDice: lastDice ? lastDice.slice() : null,
+    lastMove: lastMove ? { playerIdx: lastMove.playerIdx, pathNodes: lastMove.pathNodes.slice() } : null,
+    winnerIdx: (typeof winnerIdx === 'number') ? winnerIdx : null
+  };
+}
+
+// 按座位脱敏：终局前隐藏其他玩家的秘密城市
+function sanitizeGameStateForSeat(state, seat) {
+  const s = JSON.parse(JSON.stringify(state));
+  if (!s.isGameOver) {
+    s.players.forEach((p, i) => { if (i !== seat) p.secret = null; });
+  }
+  return s;
+}
+
+function applyGameState(state) {
+  if (!state || !Array.isArray(state.players)) return;
+  players = state.players.map(p => Object.assign({}, p, {
+    secret: p.secret ? Object.assign({}, p.secret) : null,
+    tickets: (p.tickets || []).slice()
+  }));
+  currentPlayerIdx = state.currentPlayerIdx || 0;
+  deck = (state.deck || []).map(c => Object.assign({}, c));
+  publicTargets = (state.publicTargets || []).map(c => Object.assign({}, c));
+  pendingWilds = state.pendingWilds || 0;
+  hasRolled = !!state.hasRolled;
+  isGameOver = !!state.isGameOver;
+  currentlyWildColor = state.currentlyWildColor || null;
+  winnerIdx = (typeof state.winnerIdx === 'number') ? state.winnerIdx : null;
+  hoveredPathNodes = [];
+
+  // 计算当前行动者可达路线（公开信息，各端本地算）
+  if (hasRolled && pendingWilds === 0 && !isGameOver && players[currentPlayerIdx]) {
+    reachablePaths = computeReachable(players[currentPlayerIdx].node, players[currentPlayerIdx].tickets);
+  } else {
+    reachablePaths = {};
+  }
+
+  const wildModal = document.getElementById('wild-modal');
+  if (wildModal) {
+    const showWild = pendingWilds > 0 && !isGameOver && (!net.enabled || net.seat === currentPlayerIdx);
+    wildModal.style.display = showWild ? 'block' : 'none';
+  }
+  const diceBadge = document.getElementById('dice-result-badge');
+  if (diceBadge) {
+    diceBadge.textContent = (state.lastDice && state.lastDice.length === 2)
+      ? `本轮掷出: ${state.lastDice.map(r => r === 'GO' ? '🌈GO!' : COLOR_CN[r] + '票').join(' + ')}`
+      : '等待投掷骰子';
+  }
+  document.getElementById('btn-end').classList.remove('must-click');
+
+  // 确保所有玩家都有 3D 棋子
+  players.forEach(p => {
+    if (!playerPawns3D[p.id]) {
+      const pawn = create3DMeeplePawn(p.color);
+      if (is2DMode) pawn.scale.set(1.25, 0.18, 1.25);
+      playerPawns3D[p.id] = pawn;
+    }
+  });
+
+  const mv = state.lastMove;
+  const dd = state.lastDice;
+  sync3DBoardState(false);
+  updateSidebar();
+
+  // 本地视觉回放：棋子沿路线跳跃
+  if (mv && mv.pathNodes && mv.pathNodes.length > 1 && !isGameOver && playerPawns3D[mv.playerIdx]) {
+    const startNode = NODES.find(n => n.id === mv.pathNodes[0]);
+    const pawn = playerPawns3D[mv.playerIdx];
+    if (startNode && pawn) {
+      const [ox, oz] = getSafePawnOffset(startNode.id, mv.playerIdx);
+      pawn.position.set(startNode.wx + ox, PAWN_REST_Y, startNode.wz + oz);
+    }
+    animatePawnPath(mv.playerIdx, mv.pathNodes, () => {
+      sync3DBoardState(false);
+      updateSidebar();
+    });
+  }
+  // 本地视觉回放：骰子抛投
+  if (dd && dd.length === 2) {
+    SoundEngine.unlockAudio();
+    SoundEngine.playDiceRoll();
+    animate3DDiceThrow(dd[0], dd[1], () => {
+      if (dd.indexOf('GO') !== -1) SoundEngine.playWildGo();
+      updateSidebar();
+    });
+  }
+  if (isGameOver && typeof winnerIdx === 'number' && players[winnerIdx]) {
+    setTimeout(() => showGameOverModal(players[winnerIdx]), 500);
+  }
+
+  // 消费一次性特效，避免重复应用同一状态时重播
+  lastDice = null;
+  lastMove = null;
+  updateNetRoomBar();
+}
+
+// 纯逻辑：应用一次移动（不带动画），供房主权威执行
+function applyMovePure(p, route) {
+  const steps = route.pathNodes.slice(1);
+  const ticketsToUse = route.tickets.slice();
+  for (let i = 0; i < steps.length; i++) {
+    const nextCityId = steps[i];
+    const usedColor = ticketsToUse[i];
+    const tIdx = p.tickets.indexOf(usedColor);
+    if (tIdx === -1) throw new Error('车票校验失败');
+    p.tickets.splice(tIdx, 1);
+    p.node = nextCityId;
+    const pubIdx = publicTargets.findIndex(t => t.id === nextCityId);
+    if (pubIdx !== -1) {
+      const card = publicTargets[pubIdx];
+      p.score += card.score;
+      if (p.score >= 10 && !p.goalReachedNotified) p.goalReachedNotified = true;
+      if (deck.length > 0) publicTargets[pubIdx] = deck.pop();
+      else publicTargets.splice(pubIdx, 1);
+    }
+    if (p.score >= 10 && p.secret && p.node === p.secret.id) return p;
+  }
+  return null;
+}
+
+function validateRoute(p, route) {
+  if (!route || !Array.isArray(route.pathNodes) || route.pathNodes.length < 2 ||
+      !Array.isArray(route.tickets) || route.tickets.length !== route.pathNodes.length - 1) return false;
+  if (route.pathNodes[0] !== p.node) return false;
+  const reachable = computeReachable(p.node, p.tickets);
+  const targetId = route.pathNodes[route.pathNodes.length - 1];
+  const list = reachable[targetId];
+  if (!list) return false;
+  return list.some(r => r.tickets.join(',') === route.tickets.join(',') && r.pathNodes.join('>') === route.pathNodes.join('>'));
+}
+
+// 房主权威执行操作（同步、无动画）
+function applyAction(action) {
+  const p = players[currentPlayerIdx];
+  switch (action.type) {
+    case 'ROLL': {
+      if (hasRolled || isHopping || isPickingRoute) throw new Error('当前不能投骰');
+      const faces = ['red', 'yellow', 'green', 'teal', 'purple', 'GO'];
+      const r1 = faces[Math.floor(Math.random() * 6)];
+      const r2 = faces[Math.floor(Math.random() * 6)];
+      lastDice = [r1, r2];
+      hasRolled = true;
+      [r1, r2].forEach(r => {
+        if (r === 'GO') pendingWilds++;
+        else p.tickets.push(r);
+      });
+      break;
+    }
+    case 'PICK_WILD': {
+      if (pendingWilds <= 0) throw new Error('没有待兑换的 GO! 票');
+      if (!ALL_COLORS.includes(action.color)) throw new Error('无效颜色');
+      currentlyWildColor = action.color;
+      p.tickets.push(action.color);
+      pendingWilds--;
+      break;
+    }
+    case 'MOVE': {
+      if (!hasRolled || pendingWilds > 0 || isHopping || isPickingRoute) throw new Error('当前不能移动');
+      if (!validateRoute(p, action.route)) throw new Error('非法路线');
+      const winner = applyMovePure(p, action.route);
+      lastMove = { playerIdx: currentPlayerIdx, pathNodes: action.route.pathNodes.slice() };
+      if (winner) { isGameOver = true; winnerIdx = winner.id; allAIAutoRunning = false; }
+      break;
+    }
+    case 'END_TURN': {
+      if (!hasRolled || isHopping || isPickingRoute) throw new Error('当前不能结束回合');
+      currentPlayerIdx = (currentPlayerIdx + 1) % players.length;
+      hasRolled = false;
+      pendingWilds = 0;
+      break;
+    }
+    case 'RESTART': {
+      restartOnlineGame();
+      break;
+    }
+    default: throw new Error('未知操作');
+  }
+}
+
+function canActAsSeat(seat, action) {
+  if (action.type === 'RESTART') return true; // 任何座位都可请求重开
+  if (!_sceneReady || isGameOver || seat !== currentPlayerIdx) return false;
+  switch (action.type) {
+    case 'ROLL': return !hasRolled && !isHopping && !isPickingRoute;
+    case 'PICK_WILD': return pendingWilds > 0 && !isHopping && !isPickingRoute;
+    case 'MOVE': return hasRolled && pendingWilds === 0 && !isHopping && !isPickingRoute;
+    case 'END_TURN': return hasRolled && !isHopping && !isPickingRoute;
+    default: return false;
+  }
+}
+
+// 在线统一出口：房主直接执行，访客发给房主
+function sendAction(action) {
+  if (!net.enabled) return false;
+  if (!net.connected || !net.joined) { setHud('⚠️ 尚未连接房间'); return true; }
+  if (net.isHost) {
+    if (!canActAsSeat(net.seat, action)) {
+      setHud('⚠️ 还没轮到你行动');
+      SoundEngine.playClick();
+      return true;
+    }
+    try {
+      applyAction(action);
+      broadcastState();
+    } catch (e) {
+      setHud('⚠️ ' + e.message);
+      SoundEngine.playClick();
+    }
+  } else {
+    if (!hostPeerId) { setHud('⚠️ 尚未连接到房主'); return true; }
+    transport.sendTo(hostPeerId, { kind: 'action', action });
+  }
+  return true;
+}
+
+function broadcastState() {
+  const state = serializeGameState();
+  applyGameState(state); // 房主本地应用（含动画）
+  net.seats.forEach(rec => {
+    if (rec.online && rec.peerId && rec.seat !== 0) {
+      transport.sendTo(rec.peerId, { kind: 'state', game: sanitizeGameStateForSeat(state, rec.seat) });
+    }
+  });
+  netSaveHostState();
+}
+
+// 视觉回放：只移动棋子，不修改游戏状态
+function animatePawnPath(playerIdx, pathNodes, onDone) {
+  const p = players[playerIdx];
+  const pawn = p && playerPawns3D[p.id];
+  if (!p || !pawn || !pathNodes || pathNodes.length < 2) { if (onDone) onDone(); return; }
+  // 取消该棋子尚未完成的旧动画
+  for (let i = pawnAnimations.length - 1; i >= 0; i--) {
+    if (pawnAnimations[i].mesh === pawn) pawnAnimations.splice(i, 1);
+  }
+  isHopping = true;
+  SoundEngine.playTrainDepart();
+  const steps = pathNodes.slice(1);
+  let stepIdx = 0;
+  function doNext() {
+    if (stepIdx >= steps.length) {
+      isHopping = false;
+      if (onDone) onDone();
+      return;
+    }
+    const fromCity = NODES.find(n => n.id === pathNodes[stepIdx]);
+    const toCity = NODES.find(n => n.id === steps[stepIdx]);
+    if (fromCity && toCity) {
+      const [ox, oz] = getSafePawnOffset(toCity.id, playerIdx);
+      pawnAnimations.push({
+        mesh: pawn,
+        startPos: pawn.position.clone(),
+        endPos: new THREE.Vector3(toCity.wx + ox, PAWN_REST_Y, toCity.wz + oz),
+        startTime: performance.now(),
+        duration: 440
+      });
+      SoundEngine.playPawnHop(stepIdx + 1);
+      setHud(`🚂 正在行进 (${stepIdx + 1}/${steps.length})：${fromCity.name} ➔ ${toCity.name}`);
+    }
+    stepIdx++;
+    setTimeout(doNext, 560);
+  }
+  doNext();
+}
+
+// 房主重开一局并广播 start
+function restartOnlineGame() {
+  if (!net.isHost) return;
+  isGameOver = false;
+  winnerIdx = null;
+  hasRolled = false;
+  pendingWilds = 0;
+  currentPlayerIdx = 0;
+  reachablePaths = {};
+  hoveredPathNodes = [];
+  allAIAutoRunning = false;
+  lastDice = null;
+  lastMove = null;
+  document.getElementById('wild-modal').style.display = 'none';
+  document.getElementById('dice-result-badge').textContent = '等待投掷骰子';
+  document.getElementById('btn-end').disabled = true;
+  document.getElementById('btn-end').classList.remove('must-click');
+
+  deck = NODES.filter(n => !n.isStart).sort(() => Math.random() - 0.5);
+  publicTargets = [];
+  players.forEach(p => {
+    p.node = 'beijing';
+    p.score = 0;
+    p.tickets = [];
+    p.secret = deck.length ? deck.pop() : null;
+    p.goalReachedNotified = false;
+  });
+  for (let i = 0; i < 3; i++) publicTargets.push(deck.pop());
+
+  highlightHoveredEdges3D();
+  sync3DBoardState(false);
+  updateSidebar();
+  document.getElementById('game-log').innerHTML = '';
+  setHud('🎲 新的一局已开启！');
+  log('🔄 <b>新一局游戏开始！</b>所有玩家回到【北京】，重新抽取秘密城市与公共目标。');
+  netSaveHostState();
+
+  const state = serializeGameState();
+  net.seats.forEach(rec => {
+    if (rec.online && rec.peerId && rec.seat !== 0) {
+      transport.sendTo(rec.peerId, { kind: 'start', game: sanitizeGameStateForSeat(state, rec.seat) });
+    }
+  });
+}
+
+// ---------- 传输层 ----------
+function netRandCode(len) {
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let s = '';
+  for (let i = 0; i < len; i++) s += NET_ALPHABET[arr[i] % NET_ALPHABET.length];
+  return s;
+}
+function netRandToken() {
+  const arr = new Uint8Array(12);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+}
+function netBaseURL() { return location.href.split('?')[0]; }
+function netApplyRouteParam(p2p) {
+  if (!p2p) return;
+  try {
+    const p = new URLSearchParams(location.search);
+    p.set('p2p', p2p);
+    history.replaceState(null, '', netBaseURL() + '?' + p.toString());
+  } catch (e) { /* file:// 下忽略 */ }
+}
+function netUpdateURL() {
+  try {
+    const p = new URLSearchParams();
+    if (net.room) p.set('room', net.room);
+    if (net.seat !== null && net.seat !== undefined) p.set('seat', String(net.seat));
+    if (net.token) p.set('token', net.token);
+    if (net.isHost) p.set('host', '1');
+    const lib = net.lib || new URLSearchParams(location.search).get('p2p') || null;
+    if (lib) p.set('p2p', lib);
+    history.replaceState(null, '', netBaseURL() + '?' + p.toString());
+  } catch (e) { /* file:// 下忽略 */ }
+}
+function netSaveHostState() {
+  if (!net.isHost) return;
+  try {
+    localStorage.setItem(NET_HOST_KEY, JSON.stringify({
+      room: net.room,
+      seats: net.seats,
+      game: _sceneReady ? serializeGameState() : null,
+      count: net.count
+    }));
+  } catch (e) { /* 忽略写入失败 */ }
+}
+function netLoadHostState() {
+  try {
+    const raw = localStorage.getItem(NET_HOST_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.seats) || data.seats.length < 2) return null;
+    // 刷新后，除房主外所有座位视为离线，等待重连
+    data.seats.forEach(s => { if (s.seat !== 0) { s.online = false; s.peerId = null; } });
+    return data;
+  } catch (e) { return null; }
+}
+function netClearHostState() { try { localStorage.removeItem(NET_HOST_KEY); } catch (e) { /* ignore */ } }
+function netStoredName() {
+  try { return sessionStorage.getItem(NET_NAME_KEY) || ''; } catch (e) { return ''; }
+}
+
+function netLoadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('webConnect 加载失败'));
+    document.head.appendChild(s);
+  });
+}
+async function netConnectWebConnect(roomId, events) {
+  if (typeof window.webconnect !== 'function') await netLoadScript(NET_WEBCONNECT_URL);
+  const conn = window.webconnect({
+    appName: NET_APP_NAME,
+    channelName: roomId,
+    connectPassword: NET_APP_PASSWORD,
+    mqttBrokers: [],
+    torrentTrackers: [],
+    nostrRelays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://offchain.pub', 'wss://nostr.mom']
+  });
+  const t = {
+    name: 'webconnect',
+    selfId: null,
+    sendTo: (peerId, msg) => conn.Send(msg, { connectId: peerId }),
+    broadcast: msg => conn.Send(msg, { connectId: null }),
+    leave: () => { try { conn.Disconnect(); } catch (e) { /* ignore */ } }
+  };
+  conn.getMyId(attr => { t.selfId = attr.connectId; });
+  conn.onConnect(attr => events.onPeerJoin(attr.connectId));
+  conn.onDisconnect(attr => events.onPeerLeave(attr.connectId));
+  conn.onReceive((data, attr) => events.onMessage(data, attr.connectId));
+  return t;
+}
+async function netConnectTrystero(roomId, events) {
+  let mod = null, lastErr = null;
+  for (const url of NET_TRYSTERO_URLS) {
+    try { mod = await import(url); break; }
+    catch (e) { lastErr = e; }
+  }
+  if (!mod) throw lastErr || new Error('Trystero 加载失败');
+  const room = mod.joinRoom({ appId: NET_APP_NAME }, roomId);
+  const action = room.makeAction('msg');
+  const t = {
+    name: 'trystero',
+    selfId: mod.selfId,
+    sendTo: (peerId, msg) => action.send(msg, { target: peerId }),
+    broadcast: msg => action.send(msg),
+    leave: () => { try { room.leave(); } catch (e) { /* ignore */ } }
+  };
+  action.onMessage = (payload, meta) => events.onMessage(payload, meta.peerId);
+  room.onPeerJoin = peerId => events.onPeerJoin(peerId);
+  room.onPeerLeave = peerId => events.onPeerLeave(peerId);
+  return t;
+}
+async function netConnectTransport(roomId, events) {
+  const p = new URLSearchParams(location.search).get('p2p');
+  const lib = (p === 'webconnect' || p === 'trystero') ? p : NET_P2P_DEFAULT;
+  if (lib === 'webconnect') return netConnectWebConnect(roomId, events);
+  try {
+    return await netConnectTrystero(roomId, events);
+  } catch (e) {
+    if (lib === 'trystero') throw e;
+    return netConnectWebConnect(roomId, events); // auto：Trystero 失败回退 webConnect
+  }
+}
+
+// ---------- 消息协议 ----------
+function netHandleMessage(raw, peerId) {
+  let msg = raw;
+  if (typeof msg === 'string') { try { msg = JSON.parse(msg); } catch (e) { return; } }
+  if (!msg || typeof msg !== 'object') return;
+  if (transport && peerId && peerId === transport.selfId) return; // 忽略自己的回显
+  try {
+    switch (msg.kind) {
+      case 'whoami':
+        if (!net.isHost) { net.connected = true; hostPeerId = peerId; netSendJoin(); }
+        break;
+      case 'join':
+        if (net.isHost) netOnGuestJoin(msg, peerId);
+        break;
+      case 'welcome':
+        if (!net.isHost) netOnWelcome(msg, peerId);
+        break;
+      case 'lobby':
+        if (!net.isHost) { net.seats = msg.seats || []; renderLobby(); updateNetRoomBar(); }
+        break;
+      case 'start':
+        if (!net.isHost) netOnStart(msg);
+        break;
+      case 'action':
+        if (net.isHost) netOnGuestAction(msg, peerId);
+        break;
+      case 'state':
+        if (!net.isHost) netOnState(msg);
+        break;
+      case 'error':
+        if (!net.isHost) { net.connecting = false; setHud('⚠️ ' + (msg.error || '操作失败')); renderLobby(); }
+        break;
+      case 'request-state':
+        if (net.isHost && _sceneReady) {
+          const rec = net.seats.find(s => s.peerId === peerId);
+          if (rec) transport.sendTo(peerId, { kind: 'state', game: sanitizeGameStateForSeat(serializeGameState(), rec.seat) });
+        }
+        break;
+    }
+  } catch (e) { setHud('⚠️ 消息处理出错：' + e.message); }
+}
+
+function netSendJoin() {
+  if (net.joined) return;
+  transport.sendTo(hostPeerId, { kind: 'join', seat: net.seat, token: net.token, name: net.name });
+}
+
+function netOnGuestJoin(msg, peerId) {
+  const seatIn = (msg.seat === null || msg.seat === undefined) ? NaN : Number(msg.seat);
+  // 令牌匹配的座位优先（允许刷新后顶替旧连接）；否则分配第一个空闲座位
+  let rec = net.seats.find(s => s.seat === seatIn && s.token === msg.token);
+  if (!rec) rec = net.seats.find(s => !s.online);
+  if (!rec) { transport.sendTo(peerId, { kind: 'error', error: '房间已满' }); return; }
+  rec.name = String(msg.name || '').trim().slice(0, 16) || ('玩家 ' + (rec.seat + 1));
+  rec.online = true;
+  rec.peerId = peerId;
+  net.seats = net.seats.slice();
+  netSaveHostState();
+  const game = _sceneReady ? sanitizeGameStateForSeat(serializeGameState(), rec.seat) : null;
+  transport.sendTo(peerId, { kind: 'welcome', seat: rec.seat, token: rec.token, seats: net.seats, game });
+  transport.broadcast({ kind: 'lobby', seats: net.seats, started: !!_sceneReady });
+  renderLobby();
+  updateNetRoomBar();
+}
+
+function netOnWelcome(msg, fromPeer) {
+  hostPeerId = fromPeer;
+  if (msg.error) { net.connecting = false; setHud('⚠️ ' + msg.error); renderLobby(); return; }
+  net.seat = msg.seat;
+  net.token = msg.token;
+  net.joined = true;
+  net.connecting = false;
+  net.seats = msg.seats || [];
+  netUpdateURL();
+  if (msg.game) {
+    netOnStart({ game: msg.game });
+  } else {
+    renderLobby();
+    updateNetRoomBar();
+  }
+}
+
+function netOnStart(msg) {
+  net.joined = true;
+  net.connecting = false;
+  if (msg.seats) net.seats = msg.seats;
+  if (!_sceneReady) initScene();
+  if (msg.game) {
+    document.getElementById('game-log').innerHTML = '';
+    applyGameState(msg.game);
+    hideLobby();
+    updateNetRoomBar();
+  }
+}
+
+function netOnState(msg) {
+  if (msg.game) applyGameState(msg.game);
+}
+
+function netOnGuestAction(msg, peerId) {
+  if (!_sceneReady || !msg.action) return;
+  const rec = net.seats.find(s => s.peerId === peerId);
+  if (!rec) return;
+  if (!canActAsSeat(rec.seat, msg.action)) {
+    transport.sendTo(peerId, { kind: 'error', error: '还没轮到你行动' });
+    return;
+  }
+  try {
+    applyAction(msg.action);
+    if (msg.action.type !== 'RESTART') broadcastState(); // RESTART 已由 restartOnlineGame 广播 start
+  } catch (e) {
+    transport.sendTo(peerId, { kind: 'error', error: '操作无效：' + e.message });
+  }
+}
+
+// ---------- 连接与房间 ----------
+async function netConnectRoom() {
+  const events = {
+    onPeerJoin: peerId => {
+      if (net.isHost) transport.sendTo(peerId, { kind: 'whoami' });
+    },
+    onPeerLeave: peerId => {
+      if (net.isHost) {
+        const rec = net.seats.find(s => s.peerId === peerId);
+        if (rec) {
+          rec.online = false;
+          rec.peerId = null;
+          net.seats = net.seats.slice();
+          netSaveHostState();
+          transport.broadcast({ kind: 'lobby', seats: net.seats, started: !!_sceneReady });
+          renderLobby();
+          updateNetRoomBar();
+        }
+      } else if (peerId === hostPeerId) {
+        net.joined = false;
+        net.connected = false;
+        setHud('⚠️ 房主已离开房间');
+        updateNetRoomBar();
+      }
+    },
+    onMessage: netHandleMessage
+  };
+  transport = await netConnectTransport(net.room, events);
+  net.lib = transport.name;
+  net.connected = true;
+  net.connecting = false;
+  netUpdateURL();
+  renderLobby();
+  updateNetRoomBar();
+}
+
+async function netCreateRoom(count, name, p2p) {
+  net.enabled = true;
+  net.isHost = true;
+  net.joined = true;
+  net.connecting = true;
+  if (p2p) netApplyRouteParam(p2p);
+  net.room = netRandCode(5);
+  net.seat = 0;
+  net.token = netRandToken();
+  net.name = String(name || '').trim().slice(0, 16) || '房主';
+  net.count = count;
+  net.seats = [{ seat: 0, name: net.name, token: net.token, online: true, self: true }];
+  for (let i = 1; i < count; i++) net.seats.push({ seat: i, name: '', token: netRandToken(), online: false, self: false });
+  netUpdateURL();
+  renderLobby();
+  try {
+    await netConnectRoom();
+    netSaveHostState();
+  } catch (e) {
+    net.connecting = false;
+    setHud('⚠️ 连接失败：' + e.message);
+    renderLobby();
+  }
+}
+
+async function netJoin(roomId, seat, token, p2p) {
+  net.enabled = true;
+  net.isHost = false;
+  net.connecting = true;
+  if (p2p) netApplyRouteParam(p2p);
+  net.room = String(roomId || '').toUpperCase().trim();
+  net.seat = (seat === null || seat === undefined || seat === '') ? null : Number(seat);
+  net.token = token || null;
+  net.name = netStoredName() || '玩家';
+  netUpdateURL();
+  renderLobby();
+  try {
+    await netConnectRoom();
+  } catch (e) {
+    net.connecting = false;
+    setHud('⚠️ 连接失败：' + e.message);
+    renderLobby();
+  }
+}
+
+function netSwitchRoute(p2p) {
+  if (net.connecting) return;
+  const current = net.lib || new URLSearchParams(location.search).get('p2p') || 'trystero';
+  if (p2p === current) return;
+  const wasHost = net.isHost, name = net.name, count = net.count, room = net.room, seat = net.seat, token = net.token;
+  netLeave();
+  netApplyRouteParam(p2p);
+  if (wasHost) netCreateRoom(count, name, p2p);
+  else netJoin(room, seat, token, p2p);
+}
+
+async function netResumeHost() {
+  const data = netLoadHostState();
+  if (!data) {
+    setHud('⚠️ 未找到房主存档');
+    showLobby();
+    return;
+  }
+  net.enabled = true;
+  net.isHost = true;
+  net.joined = true;
+  net.connecting = true;
+  net.room = data.room;
+  net.seat = 0;
+  net.token = data.seats[0] ? data.seats[0].token : netRandToken();
+  net.name = data.seats[0] ? data.seats[0].name : '房主';
+  net.count = data.count;
+  net.seats = data.seats;
+  if (data.game) {
+    if (!_sceneReady) initScene();
+    document.getElementById('game-log').innerHTML = '';
+    applyGameState(data.game);
+    hideLobby();
+  }
+  netUpdateURL();
+  renderLobby();
+  try {
+    await netConnectRoom();
+    netSaveHostState();
+  } catch (e) {
+    net.connecting = false;
+    setHud('⚠️ 连接失败：' + e.message);
+    showLobby();
+  }
+}
+
+function netSetName(name) {
+  net.name = String(name || '').trim().slice(0, 16) || net.name;
+  try { sessionStorage.setItem(NET_NAME_KEY, net.name); } catch (e) { /* ignore */ }
+  if (net.isHost) {
+    const rec = net.seats.find(s => s.seat === 0);
+    if (rec) {
+      rec.name = net.name;
+      net.seats = net.seats.slice();
+      netSaveHostState();
+      transport.broadcast({ kind: 'lobby', seats: net.seats, started: !!_sceneReady });
+      renderLobby();
+      updateNetRoomBar();
+    }
+  } else if (net.joined && hostPeerId) {
+    transport.sendTo(hostPeerId, { kind: 'join', seat: net.seat, token: net.token, name: net.name });
+  }
+}
+
+function netStartGame() {
+  if (!net.isHost) return;
+  if (net.seats.length < 2 || !net.seats.every(s => s.online)) {
+    setHud('⚠️ 需要所有玩家在线后才能开始');
+    return;
+  }
+  const palette = ["#c1121f", "#1d3557", "#2d6a4f", "#d97706"];
+  players = net.seats.map((rec, i) => ({
+    id: i, name: rec.name || ('玩家 ' + (i + 1)), customName: true, color: palette[i],
+    node: 'beijing', score: 0, tickets: [], secret: null, isAI: false
+  }));
+  document.getElementById('game-log').innerHTML = '';
+  initGame();
+  const state = serializeGameState();
+  net.seats.forEach(rec => {
+    if (rec.online && rec.peerId && rec.seat !== 0) {
+      transport.sendTo(rec.peerId, { kind: 'start', game: sanitizeGameStateForSeat(state, rec.seat) });
+    }
+  });
+  hideLobby();
+  updateNetRoomBar();
+  netSaveHostState();
+}
+
+function netInviteLink(seat) {
+  const rec = net.seats.find(s => s.seat === seat);
+  let link = netBaseURL() + '?room=' + encodeURIComponent(net.room) + '&seat=' + seat +
+    '&token=' + encodeURIComponent(rec ? rec.token : '');
+  if (net.lib) link += '&p2p=' + encodeURIComponent(net.lib);
+  return link;
+}
+
+function netCopyInvite(seat) {
+  const link = netInviteLink(seat);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(
+      () => setHud('✅ 邀请链接已复制'),
+      () => setHud('📋 链接：' + link)
+    );
+  } else {
+    setHud('📋 链接：' + link);
+  }
+}
+
+function netLeave() {
+  const wasHost = net.isHost;
+  try { if (transport && transport.leave) transport.leave(); } catch (e) { /* ignore */ }
+  transport = null;
+  hostPeerId = null;
+  if (wasHost) netClearHostState();
+  Object.assign(net, {
+    enabled: false, isHost: false, connecting: false, connected: false, joined: false,
+    room: null, seat: null, token: null, name: '', seats: [], count: 2, lib: null
+  });
+  try {
+    const p = new URLSearchParams(location.search);
+    p.delete('room'); p.delete('seat'); p.delete('token'); p.delete('host'); p.delete('p2p');
+    history.replaceState(null, '', netBaseURL() + (p.toString() ? '?' + p.toString() : ''));
+  } catch (e) { /* ignore */ }
+  document.getElementById('lobby-overlay').classList.remove('hidden');
+  const tabs = document.querySelector('.lobby-tabs');
+  if (tabs) tabs.style.display = 'flex';
+  lobbyTab = 'online';
+  switchLobbyTab('online');
+  updateNetRoomBar();
+  document.getElementById('wild-modal').style.display = 'none';
+  document.getElementById('dice-result-badge').textContent = '等待投掷骰子';
+}
+
+function netLeaveRoom() { netLeave(); }
+
+// ---------- 游戏中房间状态条 ----------
+function updateNetRoomBar() {
+  const bar = document.getElementById('net-room-bar');
+  if (!bar) return;
+  if (!net.enabled) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const codeEl = document.getElementById('nr-room-code');
+  const statusEl = document.getElementById('nr-room-status');
+  const seatsEl = document.getElementById('nr-room-seats');
+  if (codeEl) codeEl.textContent = net.room || '——';
+  if (statusEl) {
+    if (!net.connected) statusEl.textContent = '连接中…';
+    else if (!net.joined) statusEl.textContent = '确认座位…';
+    else statusEl.textContent = net.isHost ? '👑 房主' : `座位 ${(net.seat ?? 0) + 1}`;
+  }
+  if (seatsEl) {
+    seatsEl.innerHTML = (net.seats || []).map(s =>
+      `<span class="nr-seat-chip ${s.online ? 'on' : ''} ${s.seat === net.seat ? 'you' : ''}">${s.seat + 1} ${escapeHtml(s.name || '等待中')}</span>`
+    ).join('');
+  }
+}
+
+// ---------- 大厅渲染 ----------
+function switchLobbyTab(tab) {
+  lobbyTab = tab;
+  document.getElementById('lobby-tab-local').classList.toggle('active', tab === 'local');
+  document.getElementById('lobby-tab-online').classList.toggle('active', tab === 'online');
+  renderLobby();
+}
+
+function setLocalCount(n) {
+  localCount = n;
+  renderLobby();
+}
+
+function showLobby() {
+  document.getElementById('lobby-overlay').classList.remove('hidden');
+  renderLobby();
+}
+function hideLobby() {
+  document.getElementById('lobby-overlay').classList.add('hidden');
+}
+
+function renderLobby() {
+  const tabs = document.querySelector('.lobby-tabs');
+  if (tabs) tabs.style.display = net.enabled ? 'none' : 'flex';
+  const body = document.getElementById('lobby-body');
+  if (!body) return;
+  if (net.enabled) { body.innerHTML = renderNetLobby(); return; }
+  body.innerHTML = lobbyTab === 'local' ? renderLocalLobby() : renderOnlineLobby();
+}
+
+function renderLocalLobby() {
+  return `
+    <div class="lobby-title">🚂 山河之旅 · 本地同屏</div>
+    <div class="lobby-sub">同一台设备上轮流操作。支持 2~4 名玩家，游戏中可随时将任意玩家切换为 AI 托管。</div>
+    <div class="lobby-section-label">玩家人数</div>
+    <div class="count-grid">${[2, 3, 4].map(n => `<button class="count-btn ${localCount === n ? 'active' : ''}" onclick="setLocalCount(${n})">${n} 人</button>`).join('')}</div>
+    <div class="lobby-section-label">玩家名称</div>
+    ${Array.from({ length: localCount }, (_, i) => `<input class="lobby-input" id="local-name-${i}" maxlength="12" placeholder="玩家 ${i + 1}" value="${escapeHtml(localNames[i])}" oninput="localNames[${i}]=this.value" style="margin-bottom:6px;">`).join('')}
+    <button class="lobby-btn" onclick="startLocalGame()">🎲 开始本地游戏</button>
+    <div class="lobby-note">🎯 目标：掷骰攒车票游历中国名城，先凑满 10 分并返回自己的秘密城市者获胜。</div>
+  `;
+}
+
+function renderOnlineLobby() {
+  return `
+    <div class="lobby-title">🌐 在线多人房间</div>
+    <div class="lobby-sub">无需服务器，浏览器间 P2P 直连（房主权威）。创建房间后把邀请链接发给朋友即可。</div>
+    <div class="lobby-section-label">创建房间（人数）</div>
+    <div class="count-grid">${[2, 3, 4].map(n => `<button class="count-btn ${localCount === n ? 'active' : ''}" onclick="setLocalCount(${n})">${n} 人</button>`).join('')}</div>
+    <div class="lobby-section-label">你的名字（房主）</div>
+    <input class="lobby-input" id="online-host-name" maxlength="16" placeholder="房主" value="${escapeHtml(netStoredName() || '房主')}">
+    <button class="lobby-btn" onclick="netCreateRoom(localCount, document.getElementById('online-host-name').value)">🔗 创建房间</button>
+    <div class="lobby-section-label" style="text-align:center;">—— 或 ——</div>
+    <div style="display:flex;gap:8px;">
+      <input class="lobby-input" id="join-room-input" maxlength="5" placeholder="输入 5 位房间码" style="flex:1;">
+      <button class="lobby-btn secondary" onclick="netJoinRoom()">加入房间</button>
+    </div>
+    <div class="lobby-note">房间码 5 位（不含易混淆字符）。也可直接打开房主发送的邀请链接自动加入。</div>
+  `;
+}
+
+function renderNetLobby() {
+  const currentRoute = net.lib || new URLSearchParams(location.search).get('p2p') || 'trystero';
+  const seatRow = s => {
+    const isSelf = !!s.self || (net.seat !== null && net.seat !== undefined && s.seat === net.seat);
+    return `
+    <div class="lobby-seat-row ${isSelf ? 'self' : ''} ${s.online ? 'online' : ''}">
+      <span class="lobby-seat-num">${s.seat + 1}</span>
+      <span class="lobby-seat-name">${escapeHtml(s.name || '等待加入…')}</span>
+      <span class="lobby-seat-status">${s.online ? (isSelf ? '👈 你' : '🟢 在线') : '⏳ 等待中'}</span>
+    </div>`;
+  };
+  let inner;
+  if (net.connecting) {
+    inner = `<div class="lobby-title">⏳ 正在连接房间 ${escapeHtml(net.room || '')}…</div><div class="lobby-note">正在建立 P2P 通道，请稍候。</div>`;
+  } else if (net.isHost) {
+    const ready = net.seats.length >= 2 && net.seats.every(s => s.online);
+    inner = `
+      <div class="lobby-title">🎉 房间已创建</div>
+      <div class="lobby-sub">将下方房间码或邀请链接发送给朋友，全部就位后开始游戏。</div>
+      <div class="room-code-box">${escapeHtml(net.room)}</div>
+      <div class="lobby-seats">${net.seats.map(seatRow).join('')}</div>
+      <div class="lobby-section-label">邀请链接</div>
+      ${net.seats.filter(s => !s.online).map(s => `
+        <div class="invite-row">
+          <input class="lobby-input" readonly value="${escapeHtml(netInviteLink(s.seat))}" id="invite-${s.seat}">
+          <button class="lobby-btn secondary" style="flex:0 0 auto;min-width:80px;" onclick="netCopyInvite(${s.seat})">复制</button>
+        </div>`).join('')}
+      <button class="lobby-btn" onclick="netStartGame()" ${ready ? '' : 'disabled'}>🚀 开始游戏${ready ? '' : '（等待玩家）'}</button>
+      <button class="lobby-btn secondary" onclick="netLeaveRoom()">离开房间</button>`;
+  } else {
+    inner = `
+      <div class="lobby-title">🚪 已加入房间 ${escapeHtml(net.room)}</div>
+      <div class="lobby-sub">${net.joined ? '等待房主开始游戏…' : '正在确认座位…'}</div>
+      <div class="lobby-seats">${(net.seats || []).map(seatRow).join('')}</div>
+      <div class="lobby-section-label">你的名字</div>
+      <div style="display:flex;gap:8px;">
+        <input class="lobby-input" id="net-name-input" maxlength="16" value="${escapeHtml(net.name)}" style="flex:1;">
+        <button class="lobby-btn secondary" style="flex:0 0 auto;min-width:80px;" onclick="netSetName(document.getElementById('net-name-input').value)">改名</button>
+      </div>
+      <button class="lobby-btn secondary" onclick="netLeaveRoom()">离开房间</button>`;
+  }
+  inner += `
+    <div class="lobby-section-label">P2P 传输路线</div>
+    <div class="route-switch-row">
+      <button class="route-btn ${currentRoute === 'trystero' ? 'active' : ''}" onclick="netSwitchRoute('trystero')" ${net.connecting ? 'disabled' : ''}>路线一 · Trystero</button>
+      <button class="route-btn ${currentRoute === 'webconnect' ? 'active' : ''}" onclick="netSwitchRoute('webconnect')" ${net.connecting ? 'disabled' : ''}>路线二 · webConnect</button>
+    </div>
+    <div class="lobby-note">默认自动选择可用路线；连接建立后邀请链接会带 ?p2p= 参数，确保全员使用同一信令。</div>`;
+  return inner;
+}
+
+function netJoinRoom() {
+  const el = document.getElementById('join-room-input');
+  const code = el ? el.value.trim().toUpperCase() : '';
+  if (!code) { setHud('⚠️ 请输入房间码'); return; }
+  netJoin(code, null, null, null);
+}
+
+function startLocalGame() {
+  const palette = ["#c1121f", "#1d3557", "#2d6a4f", "#d97706"];
+  for (let i = 0; i < localCount; i++) {
+    const el = document.getElementById('local-name-' + i);
+    if (el) localNames[i] = el.value;
+  }
+  players = Array.from({ length: localCount }, (_, i) => ({
+    id: i, name: (localNames[i] || '').trim() || ('玩家 ' + (i + 1)), customName: true, color: palette[i],
+    node: 'beijing', score: 0, tickets: [], secret: null, isAI: false
+  }));
+  document.getElementById('game-log').innerHTML = '';
+  initGame();
+  hideLobby();
+}
+
+// 启动：无房间参数显示大厅，有房间参数自动加入/恢复
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(location.search);
+  const roomId = params.get('room');
+  const p2pParam = params.get('p2p');
+  if (roomId) {
+    if (params.get('host') === '1') netResumeHost();
+    else netJoin(roomId, params.get('seat'), params.get('token'), p2pParam);
+  } else {
+    showLobby();
+  }
+});
 </script>
 </body>
 </html>
